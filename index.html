@@ -1434,10 +1434,15 @@
             heatCanvas.width = heatContainer.clientWidth;
             heatCanvas.height = heatContainer.clientHeight;
 
-            // Reinitialize particles on resize
-            initFuelParticles(coreCanvas);
-            initHeatExchangerParticles(heatCanvas);
-            updateControlRods(coreCanvas);
+            // Only initialize particles if canvas has valid dimensions
+            if (coreCanvas.width > 0 && coreCanvas.height > 0) {
+                initFuelParticles(coreCanvas);
+                updateControlRods(coreCanvas);
+            }
+
+            if (heatCanvas.width > 0 && heatCanvas.height > 0) {
+                initHeatExchangerParticles(heatCanvas);
+            }
         }
 
         function init() {
@@ -1498,7 +1503,17 @@
 
                     // Resize canvases when switching to particle view
                     if (btn.dataset.tab === 'particle-view') {
-                        setTimeout(resizeCanvases, 10);
+                        setTimeout(() => {
+                            resizeCanvases();
+                            // Force reinitialize if particles are empty
+                            if (heatParticles.fuel.length === 0 && heatCanvas.width > 0) {
+                                initHeatExchangerParticles(heatCanvas);
+                            }
+                            if (coreParticles.fuel.length === 0 && coreCanvas.width > 0) {
+                                initFuelParticles(coreCanvas);
+                                updateControlRods(coreCanvas);
+                            }
+                        }, 50);
                     }
                 });
             });
@@ -1512,17 +1527,22 @@
 
             // Update physics
             updatePhysics(dt);
-            updateCoreParticles(coreCanvas, dt);
-            updateHeatParticles(heatCanvas, dt);
 
-            // Update control rods periodically
-            if (state.cycleCount % 30 === 0) {
-                updateControlRods(coreCanvas);
+            // Only update/draw if canvases have valid dimensions
+            if (coreCanvas.width > 0 && coreCanvas.height > 0) {
+                updateCoreParticles(coreCanvas, dt);
+                drawCore(coreCtx, coreCanvas);
+
+                // Update control rods periodically
+                if (state.cycleCount % 30 === 0) {
+                    updateControlRods(coreCanvas);
+                }
             }
 
-            // Render
-            drawCore(coreCtx, coreCanvas);
-            drawHeatExchanger(heatCtx, heatCanvas);
+            if (heatCanvas.width > 0 && heatCanvas.height > 0) {
+                updateHeatParticles(heatCanvas, dt);
+                drawHeatExchanger(heatCtx, heatCanvas);
+            }
 
             // Update UI
             updateUI();
