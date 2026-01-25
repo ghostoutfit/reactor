@@ -283,10 +283,10 @@
         .particle-view {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
             gap: 20px;
             max-width: 1400px;
             margin: 0 auto;
-            height: calc(100vh - 160px);
         }
 
         .particle-panel {
@@ -531,23 +531,81 @@
             </div>
 
             <!-- Heat Exchanger Panel -->
-            <div class="particle-panel">
-                <div class="particle-header">Panel B: Heat Exchanger</div>
-                <div class="particle-canvas-container">
+            <div class="particle-panel" style="grid-column: span 2;">
+                <div class="particle-header">Panel B: Heat Exchanger - Conduction Simulation</div>
+                <div class="particle-canvas-container" style="height: 400px;">
                     <canvas id="heat-canvas" class="particle-canvas"></canvas>
                 </div>
                 <div class="particle-legend">
                     <div class="legend-item">
-                        <div class="legend-dot coolant-cold"></div>
-                        <span>Cold Coolant</span>
+                        <div class="legend-dot" style="background: #ff3300;"></div>
+                        <span>Hot (Fast)</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-dot coolant-hot"></div>
-                        <span>Hot Coolant</span>
+                        <div class="legend-dot" style="background: #ffaa00;"></div>
+                        <span>Warm</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-dot energy"></div>
-                        <span>Energy Carrier</span>
+                        <div class="legend-dot" style="background: #0066ff;"></div>
+                        <span>Cold (Slow)</span>
+                    </div>
+                    <div class="legend-item" style="margin-left: 20px; border-left: 1px solid #333; padding-left: 20px;">
+                        <span style="color: #666;">FUEL (left) → BARRIER (middle) → COOLANT (right)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heat Exchanger Controls -->
+            <div class="panel" style="grid-column: span 2;">
+                <div class="panel-header">Heat Exchanger Controls</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px;">
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <div class="control-label">
+                            <span>Fuel Temperature</span>
+                            <span class="control-value"><span id="fuel-temp-value">80</span>%</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="fuel-temp-slider" min="10" max="100" value="80">
+                            <div class="slider-labels">
+                                <span>Low</span>
+                                <span>High</span>
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                            Initial velocity of fuel particles
+                        </div>
+                    </div>
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <div class="control-label">
+                            <span>Coolant Flow Rate</span>
+                            <span class="control-value"><span id="heat-flow-value">50</span>%</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="heat-flow-slider" min="10" max="100" value="50">
+                            <div class="slider-labels">
+                                <span>Slow</span>
+                                <span>Fast</span>
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                            Downward velocity + spawn rate
+                        </div>
+                    </div>
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <div class="control-label">
+                            <span>Coolant Inlet Temp</span>
+                            <span class="control-value"><span id="inlet-temp-value">10</span>%</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="inlet-temp-slider" min="0" max="50" value="10">
+                            <div class="slider-labels">
+                                <span>Cold</span>
+                                <span>Warm</span>
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                            Initial speed of incoming coolant
+                        </div>
                     </div>
                 </div>
             </div>
@@ -556,8 +614,8 @@
             <div class="info-panel">
                 <div class="info-text">
                     <strong>Chain Reaction:</strong> One fission releases 2-3 neutrons that can trigger more fissions.
-                    <strong>Energy Conservation:</strong> Total energy stays constant—it just moves and spreads out.
-                    <strong>Energy Dispersal:</strong> Concentrated energy (fast particles) becomes distributed (many slower particles), explaining why heat flows from hot to cold.
+                    <strong>Energy Conservation:</strong> Total energy stays constant—elastic collisions transfer momentum.
+                    <strong>Energy Dispersal:</strong> Fast fuel particles collide with barrier → barrier conducts to coolant → coolant carries heat away. Watch energy spread from concentrated (few fast) to distributed (many slower).
                 </div>
             </div>
         </div>
@@ -599,10 +657,24 @@
             fissionEvents: []
         };
 
-        // Heat exchanger particles
+        // Heat exchanger particles (new physics-based system)
         const heatParticles = {
-            coolant: [],
-            energyCarriers: []
+            fuel: [],       // Tethered hot particles on left
+            barrier: [],    // Tethered barrier particles in middle
+            coolant: []     // Flowing coolant particles on right
+        };
+
+        // Heat exchanger settings
+        const heatSettings = {
+            fuelTemp: 80,       // 10-100, initial velocity of fuel
+            coolantFlow: 50,    // 10-100, downward velocity + spawn rate
+            inletTemp: 10,      // 0-50, initial speed of coolant
+
+            // Physics constants
+            springK: 100,       // Spring stiffness
+            damping: 3,         // Damping coefficient
+            particleRadius: 8,
+            maxSpeed: 15        // For color mapping
         };
 
         // Initialize fuel particles (stationary grid)
@@ -627,21 +699,188 @@
             }
         }
 
-        // Initialize coolant particles
-        function initCoolantParticles(canvas) {
+        // Initialize heat exchanger particles (fuel, barrier, coolant regions)
+        function initHeatExchangerParticles(canvas) {
+            heatParticles.fuel = [];
+            heatParticles.barrier = [];
             heatParticles.coolant = [];
-            const count = 60;
 
-            for (let i = 0; i < count; i++) {
-                heatParticles.coolant.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 2,
-                    vy: (Math.random() - 0.5) * 2,
-                    radius: 8,
-                    energy: 0.1 + Math.random() * 0.2  // Start cold
-                });
+            const r = heatSettings.particleRadius;
+            const padding = r * 2;
+
+            // Region boundaries (left to right: fuel 30%, barrier 20%, coolant 50%)
+            const fuelEnd = canvas.width * 0.30;
+            const barrierStart = fuelEnd;
+            const barrierEnd = canvas.width * 0.50;
+            const coolantStart = barrierEnd;
+
+            // Fuel region: grid of tethered hot particles
+            const fuelCols = 4;
+            const fuelRows = Math.floor((canvas.height - padding * 2) / (r * 3));
+            const fuelSpacingX = (fuelEnd - padding * 2) / (fuelCols + 1);
+            const fuelSpacingY = (canvas.height - padding * 2) / (fuelRows + 1);
+
+            for (let col = 0; col < fuelCols; col++) {
+                for (let row = 0; row < fuelRows; row++) {
+                    const anchorX = padding + fuelSpacingX * (col + 1);
+                    const anchorY = padding + fuelSpacingY * (row + 1);
+                    // Hot particles: high initial velocity
+                    const speed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed;
+                    const angle = Math.random() * Math.PI * 2;
+                    heatParticles.fuel.push({
+                        x: anchorX,
+                        y: anchorY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        anchorX: anchorX,
+                        anchorY: anchorY,
+                        radius: r
+                    });
+                }
             }
+
+            // Barrier region: 4 columns of tethered particles
+            const barrierCols = 4;
+            const barrierRows = Math.floor((canvas.height - padding * 2) / (r * 2.5));
+            const barrierSpacingX = (barrierEnd - barrierStart) / (barrierCols + 1);
+            const barrierSpacingY = (canvas.height - padding * 2) / (barrierRows + 1);
+
+            for (let col = 0; col < barrierCols; col++) {
+                for (let row = 0; row < barrierRows; row++) {
+                    const anchorX = barrierStart + barrierSpacingX * (col + 1);
+                    const anchorY = padding + barrierSpacingY * (row + 1);
+                    heatParticles.barrier.push({
+                        x: anchorX,
+                        y: anchorY,
+                        vx: 0,
+                        vy: 0,
+                        anchorX: anchorX,
+                        anchorY: anchorY,
+                        radius: r
+                    });
+                }
+            }
+
+            // Coolant region: initially spawn some particles
+            const initialCoolant = 30;
+            for (let i = 0; i < initialCoolant; i++) {
+                spawnCoolantParticle(canvas, coolantStart);
+            }
+        }
+
+        // Spawn a new coolant particle at top of coolant region
+        function spawnCoolantParticle(canvas, coolantStart) {
+            const r = heatSettings.particleRadius;
+            const inletSpeed = (heatSettings.inletTemp / 100) * heatSettings.maxSpeed * 0.3;
+            const flowVy = (heatSettings.coolantFlow / 100) * 3 + 0.5;
+
+            heatParticles.coolant.push({
+                x: coolantStart + r + Math.random() * (canvas.width - coolantStart - r * 2),
+                y: r + Math.random() * 20,
+                vx: (Math.random() - 0.5) * inletSpeed * 2,
+                vy: flowVy + Math.random() * inletSpeed,
+                radius: r
+            });
+        }
+
+        // Elastic 2D collision between two particles (equal mass)
+        function elasticCollision(p1, p2) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = p1.radius + p2.radius;
+
+            if (dist < minDist && dist > 0.001) {
+                // Normalize collision vector
+                const nx = dx / dist;
+                const ny = dy / dist;
+
+                // Relative velocity
+                const dvx = p1.vx - p2.vx;
+                const dvy = p1.vy - p2.vy;
+                const vRel = dvx * nx + dvy * ny;
+
+                // Only collide if approaching
+                if (vRel > 0) {
+                    // Update velocities (equal mass elastic collision)
+                    p1.vx -= vRel * nx;
+                    p1.vy -= vRel * ny;
+                    p2.vx += vRel * nx;
+                    p2.vy += vRel * ny;
+                }
+
+                // Separate particles to prevent overlap
+                const overlap = minDist - dist;
+                const separationX = (overlap / 2 + 0.5) * nx;
+                const separationY = (overlap / 2 + 0.5) * ny;
+
+                // Only move non-tethered particles fully, tethered particles less
+                if (p1.anchorX === undefined) {
+                    p1.x -= separationX;
+                    p1.y -= separationY;
+                } else {
+                    p1.x -= separationX * 0.3;
+                    p1.y -= separationY * 0.3;
+                }
+
+                if (p2.anchorX === undefined) {
+                    p2.x += separationX;
+                    p2.y += separationY;
+                } else {
+                    p2.x += separationX * 0.3;
+                    p2.y += separationY * 0.3;
+                }
+
+                return true;
+            }
+            return false;
+        }
+
+        // Update tethered particle with spring physics
+        function updateTetheredParticle(p, dt) {
+            const k = heatSettings.springK;
+            const c = heatSettings.damping;
+
+            // Spring force: F = -k * displacement - c * velocity
+            const dispX = p.x - p.anchorX;
+            const dispY = p.y - p.anchorY;
+
+            const forceX = -k * dispX - c * p.vx;
+            const forceY = -k * dispY - c * p.vy;
+
+            // Update velocity and position
+            p.vx += forceX * dt;
+            p.vy += forceY * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+        }
+
+        // Get particle speed
+        function getSpeed(p) {
+            return Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        }
+
+        // Map speed to color (blue = cold/slow, red = hot/fast)
+        function speedToColor(speed) {
+            const ratio = Math.min(1, speed / heatSettings.maxSpeed);
+
+            // Blue (0,100,255) -> Yellow (255,200,0) -> Red (255,50,0)
+            let r, g, b;
+            if (ratio < 0.5) {
+                // Blue to Yellow
+                const t = ratio * 2;
+                r = Math.floor(255 * t);
+                g = Math.floor(100 + 100 * t);
+                b = Math.floor(255 * (1 - t));
+            } else {
+                // Yellow to Red
+                const t = (ratio - 0.5) * 2;
+                r = 255;
+                g = Math.floor(200 * (1 - t) + 50 * t);
+                b = 0;
+            }
+
+            return { r, g, b, ratio };
         }
 
         // Spawn neutron
@@ -667,17 +906,14 @@
             });
         }
 
-        // Spawn energy carrier (for heat exchanger)
+        // Legacy function - kept for reactor core compatibility
         function spawnEnergyCarrier(x, y, energy) {
-            heatParticles.energyCarriers.push({
-                x: x,
-                y: y,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                radius: 5,
-                energy: energy,
-                life: 200
-            });
+            // Energy from fissions now adds to fuel particle velocities
+            for (const fuel of heatParticles.fuel) {
+                const boost = energy * 0.5;
+                fuel.vx += (Math.random() - 0.5) * boost * heatSettings.maxSpeed;
+                fuel.vy += (Math.random() - 0.5) * boost * heatSettings.maxSpeed;
+            }
         }
 
         // Update control rod particles
@@ -827,72 +1063,108 @@
         }
 
         function updateHeatParticles(canvas, dt) {
-            const flowSpeed = state.coolantFlow / 50;
+            const simDt = 0.016; // Fixed timestep for stability
 
-            // Update coolant particles
-            for (const c of heatParticles.coolant) {
-                // Base movement
-                c.x += c.vx * flowSpeed;
-                c.y += c.vy * flowSpeed;
+            // Region boundaries
+            const fuelEnd = canvas.width * 0.30;
+            const barrierStart = fuelEnd;
+            const barrierEnd = canvas.width * 0.50;
+            const coolantStart = barrierEnd;
+            const r = heatSettings.particleRadius;
 
-                // Bounce off walls
-                if (c.x < 0 || c.x > canvas.width) c.vx *= -1;
-                if (c.y < 0 || c.y > canvas.height) c.vy *= -1;
-                c.x = Math.max(0, Math.min(canvas.width, c.x));
-                c.y = Math.max(0, Math.min(canvas.height, c.y));
+            // === Update Fuel Particles (tethered, hot) ===
+            for (const fuel of heatParticles.fuel) {
+                updateTetheredParticle(fuel, simDt);
 
-                // Speed based on energy (temperature)
-                const speed = Math.sqrt(c.vx*c.vx + c.vy*c.vy);
-                const targetSpeed = 1 + c.energy * 4;
-                if (speed > 0.1) {
-                    const factor = targetSpeed / speed;
-                    c.vx *= 0.95 + factor * 0.05;
-                    c.vy *= 0.95 + factor * 0.05;
-                }
-
-                // Energy slowly dissipates (cooling)
-                c.energy *= 0.998;
-                c.energy = Math.max(0.1, c.energy);
-
-                // Fresh cold coolant enters based on flow rate
-                if (Math.random() < flowSpeed * 0.02) {
-                    c.energy = 0.1 + Math.random() * 0.1;
+                // Maintain minimum energy (fuel is always hot)
+                const speed = getSpeed(fuel);
+                const minSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed * 0.5;
+                if (speed < minSpeed) {
+                    const boost = (minSpeed - speed) * 0.1;
+                    const angle = Math.random() * Math.PI * 2;
+                    fuel.vx += Math.cos(angle) * boost;
+                    fuel.vy += Math.sin(angle) * boost;
                 }
             }
 
-            // Update energy carriers
-            for (let i = heatParticles.energyCarriers.length - 1; i >= 0; i--) {
-                const e = heatParticles.energyCarriers[i];
-                e.x += e.vx;
-                e.y += e.vy;
-                e.life--;
+            // === Update Barrier Particles (tethered) ===
+            for (const barrier of heatParticles.barrier) {
+                updateTetheredParticle(barrier, simDt);
+            }
 
-                // Bounce
-                if (e.x < 0 || e.x > canvas.width) e.vx *= -1;
-                if (e.y < 0 || e.y > canvas.height) e.vy *= -1;
+            // === Update Coolant Particles (flowing) ===
+            const baseFlowVy = (heatSettings.coolantFlow / 100) * 2 + 0.3;
 
-                // Transfer energy to nearby coolant
-                for (const c of heatParticles.coolant) {
-                    const dx = e.x - c.x;
-                    const dy = e.y - c.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
+            for (let i = heatParticles.coolant.length - 1; i >= 0; i--) {
+                const c = heatParticles.coolant[i];
 
-                    if (dist < 20 && e.energy > 0.1) {
-                        const transfer = e.energy * 0.1;
-                        c.energy = Math.min(1, c.energy + transfer);
-                        e.energy -= transfer;
+                // Add base downward flow
+                c.vy += baseFlowVy * 0.01;
 
-                        // Push coolant particle (energy transfer)
-                        if (dist > 0.1) {
-                            c.vx -= (dx / dist) * 0.5;
-                            c.vy -= (dy / dist) * 0.5;
-                        }
-                    }
+                // Update position
+                c.x += c.vx * simDt * 60;
+                c.y += c.vy * simDt * 60;
+
+                // Bounce off walls (except bottom - despawn there)
+                if (c.x < coolantStart + r) {
+                    c.x = coolantStart + r;
+                    c.vx = Math.abs(c.vx) * 0.8;
+                }
+                if (c.x > canvas.width - r) {
+                    c.x = canvas.width - r;
+                    c.vx = -Math.abs(c.vx) * 0.8;
+                }
+                if (c.y < r) {
+                    c.y = r;
+                    c.vy = Math.abs(c.vy) * 0.8;
                 }
 
-                // Remove if depleted or dead
-                if (e.life <= 0 || e.energy < 0.1) {
-                    heatParticles.energyCarriers.splice(i, 1);
+                // Despawn at bottom
+                if (c.y > canvas.height + r) {
+                    heatParticles.coolant.splice(i, 1);
+                }
+            }
+
+            // === Spawn new coolant particles ===
+            const spawnRate = (heatSettings.coolantFlow / 100) * 0.3 + 0.05;
+            if (Math.random() < spawnRate && heatParticles.coolant.length < 80) {
+                spawnCoolantParticle(canvas, coolantStart);
+            }
+
+            // === Collision Detection ===
+
+            // Fuel-Fuel collisions
+            for (let i = 0; i < heatParticles.fuel.length; i++) {
+                for (let j = i + 1; j < heatParticles.fuel.length; j++) {
+                    elasticCollision(heatParticles.fuel[i], heatParticles.fuel[j]);
+                }
+            }
+
+            // Fuel-Barrier collisions (energy transfer from fuel to barrier)
+            for (const fuel of heatParticles.fuel) {
+                for (const barrier of heatParticles.barrier) {
+                    elasticCollision(fuel, barrier);
+                }
+            }
+
+            // Barrier-Barrier collisions
+            for (let i = 0; i < heatParticles.barrier.length; i++) {
+                for (let j = i + 1; j < heatParticles.barrier.length; j++) {
+                    elasticCollision(heatParticles.barrier[i], heatParticles.barrier[j]);
+                }
+            }
+
+            // Barrier-Coolant collisions (energy transfer from barrier to coolant)
+            for (const barrier of heatParticles.barrier) {
+                for (const coolant of heatParticles.coolant) {
+                    elasticCollision(barrier, coolant);
+                }
+            }
+
+            // Coolant-Coolant collisions
+            for (let i = 0; i < heatParticles.coolant.length; i++) {
+                for (let j = i + 1; j < heatParticles.coolant.length; j++) {
+                    elasticCollision(heatParticles.coolant[i], heatParticles.coolant[j]);
                 }
             }
         }
@@ -976,67 +1248,122 @@
         function drawHeatExchanger(ctx, canvas) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw boundary indicator (core area at top)
-            ctx.fillStyle = 'rgba(255, 100, 0, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.15);
-            ctx.strokeStyle = 'rgba(255, 100, 0, 0.3)';
+            // Region boundaries
+            const fuelEnd = canvas.width * 0.30;
+            const barrierStart = fuelEnd;
+            const barrierEnd = canvas.width * 0.50;
+            const coolantStart = barrierEnd;
+
+            // Draw region backgrounds
+            // Fuel region (dark red tint)
+            ctx.fillStyle = 'rgba(100, 20, 20, 0.3)';
+            ctx.fillRect(0, 0, fuelEnd, canvas.height);
+
+            // Barrier region (dark gray)
+            ctx.fillStyle = 'rgba(50, 50, 60, 0.4)';
+            ctx.fillRect(barrierStart, 0, barrierEnd - barrierStart, canvas.height);
+
+            // Coolant region (dark blue tint)
+            ctx.fillStyle = 'rgba(20, 30, 80, 0.3)';
+            ctx.fillRect(coolantStart, 0, canvas.width - coolantStart, canvas.height);
+
+            // Draw region separators
+            ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.moveTo(0, canvas.height * 0.15);
-            ctx.lineTo(canvas.width, canvas.height * 0.15);
+            ctx.moveTo(fuelEnd, 0);
+            ctx.lineTo(fuelEnd, canvas.height);
+            ctx.moveTo(barrierEnd, 0);
+            ctx.lineTo(barrierEnd, canvas.height);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Label
-            ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
+            // Draw region labels
+            ctx.font = '11px Courier New';
+            ctx.fillStyle = 'rgba(255, 150, 150, 0.7)';
+            ctx.fillText('FUEL', 10, 15);
+            ctx.fillStyle = 'rgba(180, 180, 180, 0.7)';
+            ctx.fillText('BARRIER', barrierStart + 5, 15);
+            ctx.fillStyle = 'rgba(150, 150, 255, 0.7)';
+            ctx.fillText('COOLANT', coolantStart + 5, 15);
+
+            // Draw flow arrows for coolant
+            ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+            ctx.lineWidth = 2;
+            const arrowX = coolantStart + (canvas.width - coolantStart) / 2;
+            for (let y = 30; y < canvas.height - 30; y += 60) {
+                ctx.beginPath();
+                ctx.moveTo(arrowX, y);
+                ctx.lineTo(arrowX, y + 30);
+                ctx.lineTo(arrowX - 8, y + 22);
+                ctx.moveTo(arrowX, y + 30);
+                ctx.lineTo(arrowX + 8, y + 22);
+                ctx.stroke();
+            }
+            ctx.lineWidth = 1;
+
+            // Helper function to draw a particle with glow
+            function drawParticle(p, isAnchored) {
+                const speed = getSpeed(p);
+                const color = speedToColor(speed);
+
+                // Glow effect based on speed
+                const glowSize = p.radius * (1.5 + color.ratio * 1.5);
+                const gradient = ctx.createRadialGradient(p.x, p.y, p.radius * 0.5, p.x, p.y, glowSize);
+                gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.9)`);
+                gradient.addColorStop(0.5, `rgba(${color.r}, ${color.g}, ${color.b}, 0.4)`);
+                gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Particle core
+                ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Bright center
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + color.ratio * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw anchor tether for tethered particles (subtle)
+                if (isAnchored && p.anchorX !== undefined) {
+                    const dist = Math.sqrt(Math.pow(p.x - p.anchorX, 2) + Math.pow(p.y - p.anchorY, 2));
+                    if (dist > 2) {
+                        ctx.strokeStyle = `rgba(100, 100, 100, ${Math.min(0.3, dist / 30)})`;
+                        ctx.beginPath();
+                        ctx.moveTo(p.anchorX, p.anchorY);
+                        ctx.lineTo(p.x, p.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw fuel particles (always hot, tethered)
+            for (const fuel of heatParticles.fuel) {
+                drawParticle(fuel, true);
+            }
+
+            // Draw barrier particles (tethered)
+            for (const barrier of heatParticles.barrier) {
+                drawParticle(barrier, true);
+            }
+
+            // Draw coolant particles (flowing)
+            for (const coolant of heatParticles.coolant) {
+                drawParticle(coolant, false);
+            }
+
+            // Draw inlet/outlet indicators
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.5)';
             ctx.font = '10px Courier New';
-            ctx.fillText('CORE BOUNDARY', 10, 12);
-
-            // Draw energy carriers
-            for (const e of heatParticles.energyCarriers) {
-                const alpha = Math.min(1, e.life / 50) * e.energy;
-
-                // Glow
-                const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius * 4);
-                gradient.addColorStop(0, `rgba(255, 50, 100, ${alpha})`);
-                gradient.addColorStop(1, 'rgba(255, 50, 100, 0)');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, e.radius * 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Core
-                ctx.fillStyle = `rgba(255, 100, 150, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Draw coolant particles
-            for (const c of heatParticles.coolant) {
-                // Color based on energy (blue = cold, red = hot)
-                const r = Math.floor(c.energy * 255);
-                const g = Math.floor(50 + (1 - c.energy) * 50);
-                const b = Math.floor((1 - c.energy) * 255);
-
-                // Size based on energy (hotter = slightly larger visual)
-                const displayRadius = c.radius * (0.8 + c.energy * 0.4);
-
-                // Glow
-                const gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, displayRadius * 2);
-                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
-                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(c.x, c.y, displayRadius * 2, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Core
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.beginPath();
-                ctx.arc(c.x, c.y, displayRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            ctx.fillText('▼ INLET (COLD)', coolantStart + 5, canvas.height - 25);
+            ctx.fillStyle = 'rgba(255, 150, 100, 0.5)';
+            ctx.fillText('▼ OUTLET (WARM)', coolantStart + 5, canvas.height - 10);
         }
 
         // ==================== UI UPDATES ====================
@@ -1109,7 +1436,7 @@
 
             // Reinitialize particles on resize
             initFuelParticles(coreCanvas);
-            initCoolantParticles(heatCanvas);
+            initHeatExchangerParticles(heatCanvas);
             updateControlRods(coreCanvas);
         }
 
@@ -1137,6 +1464,26 @@
             coolantSlider.addEventListener('input', (e) => {
                 state.coolantFlow = parseInt(e.target.value);
                 document.getElementById('coolant-value').textContent = state.coolantFlow;
+            });
+
+            // Setup heat exchanger controls
+            const fuelTempSlider = document.getElementById('fuel-temp-slider');
+            const heatFlowSlider = document.getElementById('heat-flow-slider');
+            const inletTempSlider = document.getElementById('inlet-temp-slider');
+
+            fuelTempSlider.addEventListener('input', (e) => {
+                heatSettings.fuelTemp = parseInt(e.target.value);
+                document.getElementById('fuel-temp-value').textContent = heatSettings.fuelTemp;
+            });
+
+            heatFlowSlider.addEventListener('input', (e) => {
+                heatSettings.coolantFlow = parseInt(e.target.value);
+                document.getElementById('heat-flow-value').textContent = heatSettings.coolantFlow;
+            });
+
+            inletTempSlider.addEventListener('input', (e) => {
+                heatSettings.inletTemp = parseInt(e.target.value);
+                document.getElementById('inlet-temp-value').textContent = heatSettings.inletTemp;
             });
 
             // Setup tabs
