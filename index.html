@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Power Plant Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0f;
+            color: #00ff88;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border-bottom: 2px solid #00ff88;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.4em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #00ff8855;
+        }
+
+        .header-status {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85em;
+        }
+
+        .header-status span {
+            color: #888;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            background: #0f0f1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab-btn {
+            padding: 15px 40px;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn:hover {
+            color: #00ff88;
+            background: #1a1a2e;
+        }
+
+        .tab-btn.active {
+            color: #00ff88;
+            border-bottom-color: #00ff88;
+            background: #1a1a2e;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 20px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Control Room Tab */
+        .control-room {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: linear-gradient(135deg, #1a1a2e 0%, #12121f 100%);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel-header {
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .control-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #0a0a0f;
+            border-radius: 4px;
+            border: 1px solid #333;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 30px;
+            background: linear-gradient(180deg, #00ff88 0%, #00aa55 100%);
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ff8855;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 30px;
+            background: linear-gradient(180deg, #00ff88 0%, #00aa55 100%);
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Readouts */
+        .readouts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .readout {
+            background: #0a0a0f;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .readout-label {
+            font-size: 0.75em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .readout-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #00ff88;
+            text-shadow: 0 0 10px #00ff8855;
+        }
+
+        .readout-unit {
+            font-size: 0.5em;
+            color: #888;
+            margin-left: 5px;
+        }
+
+        /* Reactor State Indicator */
+        .reactor-state {
+            grid-column: span 2;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .state-indicator {
+            display: inline-block;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .state-stable {
+            background: #0a2a0a;
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            box-shadow: 0 0 20px #00ff8833;
+        }
+
+        .state-warning {
+            background: #2a2a0a;
+            border: 2px solid #ffaa00;
+            color: #ffaa00;
+            box-shadow: 0 0 20px #ffaa0033;
+            animation: pulse-warning 1s infinite;
+        }
+
+        .state-critical {
+            background: #2a0a0a;
+            border: 2px solid #ff3333;
+            color: #ff3333;
+            box-shadow: 0 0 20px #ff333355;
+            animation: pulse-critical 0.5s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes pulse-critical {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Target Display */
+        .target-display {
+            background: #0a0a0f;
+            border: 1px solid #00ff8855;
+            border-radius: 4px;
+            padding: 15px;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .target-label {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .target-range {
+            color: #00ff88;
+            font-size: 1.1em;
+        }
+
+        /* Particle View Tab */
+        .particle-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            height: calc(100vh - 160px);
+        }
+
+        .particle-panel {
+            background: linear-gradient(135deg, #1a1a2e 0%, #12121f 100%);
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .particle-header {
+            padding: 15px 20px;
+            background: #0f0f1a;
+            border-bottom: 1px solid #333;
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .particle-canvas-container {
+            flex: 1;
+            position: relative;
+            background: #050508;
+        }
+
+        .particle-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .particle-legend {
+            padding: 10px 15px;
+            background: #0a0a0f;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.75em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.fuel { background: #ff6600; }
+        .legend-dot.neutron { background: #00ffff; }
+        .legend-dot.control-rod { background: #666666; }
+        .legend-dot.fission { background: #ffff00; }
+        .legend-dot.coolant-cold { background: #0066ff; }
+        .legend-dot.coolant-hot { background: #ff3366; }
+        .legend-dot.energy { background: #ff0066; }
+
+        /* Info Panel */
+        .info-panel {
+            grid-column: span 2;
+            background: linear-gradient(135deg, #1a1a2e 0%, #12121f 100%);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px 20px;
+        }
+
+        .info-text {
+            color: #888;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+
+        .info-text strong {
+            color: #00ff88;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .control-room, .particle-view {
+                grid-template-columns: 1fr;
+            }
+
+            .reactor-state, .info-panel {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>⚛ Nuclear Power Plant Simulator</h1>
+        <div class="header-status">
+            <span>SIM TIME: <span id="sim-time">00:00:00</span></span>
+            <span>CYCLE: <span id="cycle-count">0</span></span>
+        </div>
+    </header>
+
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="control-room">Control Room</button>
+        <button class="tab-btn" data-tab="particle-view">Particle View</button>
+    </nav>
+
+    <!-- Control Room Tab -->
+    <div id="control-room" class="tab-content active">
+        <div class="control-room">
+            <!-- Controls Panel -->
+            <div class="panel">
+                <div class="panel-header">Reactor Controls</div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Control Rod Position</span>
+                        <span class="control-value"><span id="rod-value">50</span>%</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="rod-slider" min="0" max="100" value="50">
+                        <div class="slider-labels">
+                            <span>0% (Withdrawn)</span>
+                            <span>100% (Inserted)</span>
+                        </div>
+                    </div>
+                    <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                        Higher = More neutron absorption = Less reaction
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Coolant Flow Rate</span>
+                        <span class="control-value"><span id="coolant-value">50</span>%</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="coolant-slider" min="0" max="100" value="50">
+                        <div class="slider-labels">
+                            <span>Low</span>
+                            <span>Medium</span>
+                            <span>High</span>
+                        </div>
+                    </div>
+                    <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                        Higher = Better cooling = Lower temperature
+                    </div>
+                </div>
+
+                <div class="target-display">
+                    <div class="target-label">TARGET POWER OUTPUT</div>
+                    <div class="target-range">400 - 600 MW</div>
+                </div>
+            </div>
+
+            <!-- Readouts Panel -->
+            <div class="panel">
+                <div class="panel-header">System Readouts</div>
+
+                <div class="readouts">
+                    <div class="readout">
+                        <div class="readout-label">Power Output</div>
+                        <div class="readout-value">
+                            <span id="power-output">0</span>
+                            <span class="readout-unit">MW</span>
+                        </div>
+                    </div>
+
+                    <div class="readout">
+                        <div class="readout-label">Core Temperature</div>
+                        <div class="readout-value">
+                            <span id="core-temp">300</span>
+                            <span class="readout-unit">°C</span>
+                        </div>
+                    </div>
+
+                    <div class="readout">
+                        <div class="readout-label">Coolant In</div>
+                        <div class="readout-value">
+                            <span id="coolant-in">280</span>
+                            <span class="readout-unit">°C</span>
+                        </div>
+                    </div>
+
+                    <div class="readout">
+                        <div class="readout-label">Coolant Out</div>
+                        <div class="readout-value">
+                            <span id="coolant-out">300</span>
+                            <span class="readout-unit">°C</span>
+                        </div>
+                    </div>
+
+                    <div class="readout reactor-state">
+                        <div class="readout-label">Reactor Status</div>
+                        <div id="reactor-state" class="state-indicator state-stable">
+                            STABLE
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="info-panel">
+                <div class="info-text">
+                    <strong>Goal:</strong> Maintain power output between 400-600 MW without overheating.
+                    <strong>Control Rods:</strong> Insert to absorb neutrons and reduce reaction rate.
+                    <strong>Coolant:</strong> Increase flow to remove heat from the core.
+                    Watch the particle view to see the physics in action!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Particle View Tab -->
+    <div id="particle-view" class="tab-content">
+        <div class="particle-view">
+            <!-- Reactor Core Panel -->
+            <div class="particle-panel">
+                <div class="particle-header">Panel A: Reactor Core</div>
+                <div class="particle-canvas-container">
+                    <canvas id="core-canvas" class="particle-canvas"></canvas>
+                </div>
+                <div class="particle-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot fuel"></div>
+                        <span>Fuel (U-235)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot neutron"></div>
+                        <span>Neutron</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot control-rod"></div>
+                        <span>Control Rod</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot fission"></div>
+                        <span>Fission Event</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heat Exchanger Panel -->
+            <div class="particle-panel">
+                <div class="particle-header">Panel B: Heat Exchanger</div>
+                <div class="particle-canvas-container">
+                    <canvas id="heat-canvas" class="particle-canvas"></canvas>
+                </div>
+                <div class="particle-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot coolant-cold"></div>
+                        <span>Cold Coolant</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot coolant-hot"></div>
+                        <span>Hot Coolant</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot energy"></div>
+                        <span>Energy Carrier</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Physics Info -->
+            <div class="info-panel">
+                <div class="info-text">
+                    <strong>Chain Reaction:</strong> One fission releases 2-3 neutrons that can trigger more fissions.
+                    <strong>Energy Conservation:</strong> Total energy stays constant—it just moves and spreads out.
+                    <strong>Energy Dispersal:</strong> Concentrated energy (fast particles) becomes distributed (many slower particles), explaining why heat flows from hot to cold.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SIMULATION STATE ====================
+        const state = {
+            // Control inputs
+            rodPosition: 50,      // 0-100, higher = more absorption
+            coolantFlow: 50,      // 0-100, higher = more cooling
+
+            // Reactor state
+            powerOutput: 0,       // MW
+            coreTemp: 300,        // °C
+            coolantTempIn: 280,   // °C
+            coolantTempOut: 300,  // °C
+
+            // Simulation
+            reactivity: 0,        // Current reaction rate
+            energyInCore: 1000,   // Arbitrary energy units
+            simTime: 0,
+            cycleCount: 0,
+
+            // Target range
+            targetMin: 400,
+            targetMax: 600,
+            criticalTemp: 800,
+            warningTemp: 650
+        };
+
+        // ==================== PARTICLE SYSTEMS ====================
+
+        // Core particles
+        const coreParticles = {
+            fuel: [],
+            neutrons: [],
+            controlRods: [],
+            fissionEvents: []
+        };
+
+        // Heat exchanger particles
+        const heatParticles = {
+            coolant: [],
+            energyCarriers: []
+        };
+
+        // Initialize fuel particles (stationary grid)
+        function initFuelParticles(canvas) {
+            coreParticles.fuel = [];
+            const cols = 8;
+            const rows = 6;
+            const spacingX = canvas.width / (cols + 1);
+            const spacingY = canvas.height / (rows + 1);
+
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    coreParticles.fuel.push({
+                        x: spacingX * (i + 1) + (Math.random() - 0.5) * 20,
+                        y: spacingY * (j + 1) + (Math.random() - 0.5) * 20,
+                        radius: 15 + Math.random() * 5,
+                        energy: 0.5 + Math.random() * 0.5,
+                        canFission: true,
+                        fissionCooldown: 0
+                    });
+                }
+            }
+        }
+
+        // Initialize coolant particles
+        function initCoolantParticles(canvas) {
+            heatParticles.coolant = [];
+            const count = 60;
+
+            for (let i = 0; i < count; i++) {
+                heatParticles.coolant.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    radius: 8,
+                    energy: 0.1 + Math.random() * 0.2  // Start cold
+                });
+            }
+        }
+
+        // Spawn neutron
+        function spawnNeutron(x, y, vx, vy) {
+            coreParticles.neutrons.push({
+                x: x,
+                y: y,
+                vx: vx || (Math.random() - 0.5) * 8,
+                vy: vy || (Math.random() - 0.5) * 8,
+                radius: 4,
+                life: 300
+            });
+        }
+
+        // Spawn fission event
+        function spawnFissionEvent(x, y) {
+            coreParticles.fissionEvents.push({
+                x: x,
+                y: y,
+                radius: 5,
+                maxRadius: 40,
+                life: 30
+            });
+        }
+
+        // Spawn energy carrier (for heat exchanger)
+        function spawnEnergyCarrier(x, y, energy) {
+            heatParticles.energyCarriers.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                radius: 5,
+                energy: energy,
+                life: 200
+            });
+        }
+
+        // Update control rod particles
+        function updateControlRods(canvas) {
+            coreParticles.controlRods = [];
+            const rodCount = Math.floor(state.rodPosition / 10);
+            const spacing = canvas.width / (rodCount + 1);
+
+            for (let i = 0; i < rodCount; i++) {
+                const x = spacing * (i + 1);
+                // Rods descend from top based on position
+                const height = (state.rodPosition / 100) * canvas.height * 0.8;
+
+                coreParticles.controlRods.push({
+                    x: x,
+                    y: 0,
+                    width: 15,
+                    height: height
+                });
+            }
+        }
+
+        // ==================== PHYSICS SIMULATION ====================
+
+        function updatePhysics(dt) {
+            // Calculate reactivity based on rod position
+            // Lower rod position = higher reactivity
+            const baseReactivity = 1 - (state.rodPosition / 100);
+            state.reactivity = baseReactivity * 0.8 + 0.1;
+
+            // Power output based on reactivity and current energy
+            const targetPower = state.reactivity * 1000;
+            state.powerOutput += (targetPower - state.powerOutput) * 0.02;
+            state.powerOutput = Math.max(0, Math.min(1000, state.powerOutput));
+
+            // Core temperature increases with power, decreases with cooling
+            const heatGeneration = state.powerOutput * 0.5;
+            const cooling = (state.coolantFlow / 100) * (state.coreTemp - 280) * 0.3;
+            state.coreTemp += (heatGeneration - cooling) * 0.01;
+            state.coreTemp = Math.max(280, Math.min(1000, state.coreTemp));
+
+            // Coolant temperatures
+            state.coolantTempIn = 280;
+            const tempDiff = state.coreTemp - state.coolantTempIn;
+            const flowEfficiency = state.coolantFlow / 100;
+            state.coolantTempOut = state.coolantTempIn + tempDiff * (0.3 + flowEfficiency * 0.5);
+
+            // Energy in core
+            state.energyInCore = state.powerOutput * 10;
+
+            // Update time
+            state.simTime += dt;
+            state.cycleCount++;
+        }
+
+        function updateCoreParticles(canvas, dt) {
+            // Update neutrons
+            for (let i = coreParticles.neutrons.length - 1; i >= 0; i--) {
+                const n = coreParticles.neutrons[i];
+                n.x += n.vx;
+                n.y += n.vy;
+                n.life--;
+
+                // Bounce off walls
+                if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+
+                // Check collision with control rods
+                let absorbed = false;
+                for (const rod of coreParticles.controlRods) {
+                    if (n.x > rod.x - rod.width/2 && n.x < rod.x + rod.width/2 &&
+                        n.y < rod.height) {
+                        absorbed = true;
+                        break;
+                    }
+                }
+
+                // Check collision with fuel (trigger fission)
+                if (!absorbed) {
+                    for (const fuel of coreParticles.fuel) {
+                        const dx = n.x - fuel.x;
+                        const dy = n.y - fuel.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+
+                        if (dist < fuel.radius && fuel.canFission && fuel.fissionCooldown <= 0) {
+                            // Fission event!
+                            spawnFissionEvent(fuel.x, fuel.y);
+                            fuel.fissionCooldown = 60 + Math.random() * 60;
+                            fuel.energy = 1;
+
+                            // Release 2-3 new neutrons
+                            const neutronCount = 2 + Math.floor(Math.random() * 2);
+                            for (let j = 0; j < neutronCount; j++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const speed = 4 + Math.random() * 4;
+                                spawnNeutron(
+                                    fuel.x,
+                                    fuel.y,
+                                    Math.cos(angle) * speed,
+                                    Math.sin(angle) * speed
+                                );
+                            }
+
+                            // Transfer energy to heat exchanger
+                            for (let k = 0; k < 3; k++) {
+                                spawnEnergyCarrier(
+                                    Math.random() * heatCanvas.width,
+                                    Math.random() * heatCanvas.height * 0.3,
+                                    0.8 + Math.random() * 0.2
+                                );
+                            }
+
+                            absorbed = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Remove if absorbed or dead
+                if (absorbed || n.life <= 0) {
+                    coreParticles.neutrons.splice(i, 1);
+                }
+            }
+
+            // Update fuel cooldowns and energy decay
+            for (const fuel of coreParticles.fuel) {
+                if (fuel.fissionCooldown > 0) fuel.fissionCooldown--;
+                fuel.energy *= 0.995;
+                fuel.energy = Math.max(0.3, fuel.energy);
+            }
+
+            // Update fission events
+            for (let i = coreParticles.fissionEvents.length - 1; i >= 0; i--) {
+                const f = coreParticles.fissionEvents[i];
+                f.radius += 2;
+                f.life--;
+                if (f.life <= 0) {
+                    coreParticles.fissionEvents.splice(i, 1);
+                }
+            }
+
+            // Spontaneous neutron generation based on reactivity
+            if (Math.random() < state.reactivity * 0.1) {
+                const fuel = coreParticles.fuel[Math.floor(Math.random() * coreParticles.fuel.length)];
+                spawnNeutron(fuel.x, fuel.y);
+            }
+        }
+
+        function updateHeatParticles(canvas, dt) {
+            const flowSpeed = state.coolantFlow / 50;
+
+            // Update coolant particles
+            for (const c of heatParticles.coolant) {
+                // Base movement
+                c.x += c.vx * flowSpeed;
+                c.y += c.vy * flowSpeed;
+
+                // Bounce off walls
+                if (c.x < 0 || c.x > canvas.width) c.vx *= -1;
+                if (c.y < 0 || c.y > canvas.height) c.vy *= -1;
+                c.x = Math.max(0, Math.min(canvas.width, c.x));
+                c.y = Math.max(0, Math.min(canvas.height, c.y));
+
+                // Speed based on energy (temperature)
+                const speed = Math.sqrt(c.vx*c.vx + c.vy*c.vy);
+                const targetSpeed = 1 + c.energy * 4;
+                if (speed > 0.1) {
+                    const factor = targetSpeed / speed;
+                    c.vx *= 0.95 + factor * 0.05;
+                    c.vy *= 0.95 + factor * 0.05;
+                }
+
+                // Energy slowly dissipates (cooling)
+                c.energy *= 0.998;
+                c.energy = Math.max(0.1, c.energy);
+
+                // Fresh cold coolant enters based on flow rate
+                if (Math.random() < flowSpeed * 0.02) {
+                    c.energy = 0.1 + Math.random() * 0.1;
+                }
+            }
+
+            // Update energy carriers
+            for (let i = heatParticles.energyCarriers.length - 1; i >= 0; i--) {
+                const e = heatParticles.energyCarriers[i];
+                e.x += e.vx;
+                e.y += e.vy;
+                e.life--;
+
+                // Bounce
+                if (e.x < 0 || e.x > canvas.width) e.vx *= -1;
+                if (e.y < 0 || e.y > canvas.height) e.vy *= -1;
+
+                // Transfer energy to nearby coolant
+                for (const c of heatParticles.coolant) {
+                    const dx = e.x - c.x;
+                    const dy = e.y - c.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < 20 && e.energy > 0.1) {
+                        const transfer = e.energy * 0.1;
+                        c.energy = Math.min(1, c.energy + transfer);
+                        e.energy -= transfer;
+
+                        // Push coolant particle (energy transfer)
+                        if (dist > 0.1) {
+                            c.vx -= (dx / dist) * 0.5;
+                            c.vy -= (dy / dist) * 0.5;
+                        }
+                    }
+                }
+
+                // Remove if depleted or dead
+                if (e.life <= 0 || e.energy < 0.1) {
+                    heatParticles.energyCarriers.splice(i, 1);
+                }
+            }
+        }
+
+        // ==================== RENDERING ====================
+
+        function drawCore(ctx, canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw control rods
+            for (const rod of coreParticles.controlRods) {
+                const gradient = ctx.createLinearGradient(rod.x - rod.width/2, 0, rod.x + rod.width/2, 0);
+                gradient.addColorStop(0, '#444');
+                gradient.addColorStop(0.5, '#666');
+                gradient.addColorStop(1, '#444');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(rod.x - rod.width/2, rod.y, rod.width, rod.height);
+
+                // Rod tip
+                ctx.fillStyle = '#888';
+                ctx.fillRect(rod.x - rod.width/2 - 2, rod.height - 5, rod.width + 4, 8);
+            }
+
+            // Draw fission events (background glow)
+            for (const f of coreParticles.fissionEvents) {
+                const alpha = f.life / 30;
+                const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+                gradient.addColorStop(0, `rgba(255, 255, 100, ${alpha * 0.8})`);
+                gradient.addColorStop(0.5, `rgba(255, 200, 50, ${alpha * 0.4})`);
+                gradient.addColorStop(1, 'rgba(255, 150, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw fuel particles
+            for (const fuel of coreParticles.fuel) {
+                // Outer glow based on energy
+                const glowRadius = fuel.radius * (1 + fuel.energy * 0.5);
+                const gradient = ctx.createRadialGradient(fuel.x, fuel.y, fuel.radius * 0.5, fuel.x, fuel.y, glowRadius);
+                const r = Math.floor(255 * fuel.energy);
+                const g = Math.floor(100 * fuel.energy);
+                gradient.addColorStop(0, `rgba(${r}, ${g}, 0, 1)`);
+                gradient.addColorStop(0.7, `rgba(${r}, ${g * 0.5}, 0, 0.5)`);
+                gradient.addColorStop(1, 'rgba(150, 50, 0, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(fuel.x, fuel.y, glowRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = `rgb(${180 + 75 * fuel.energy}, ${60 + 40 * fuel.energy}, 0)`;
+                ctx.beginPath();
+                ctx.arc(fuel.x, fuel.y, fuel.radius * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw neutrons
+            for (const n of coreParticles.neutrons) {
+                const alpha = Math.min(1, n.life / 50);
+
+                // Glow
+                const gradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius * 3);
+                gradient.addColorStop(0, `rgba(0, 255, 255, ${alpha})`);
+                gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius * 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = `rgba(200, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawHeatExchanger(ctx, canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw boundary indicator (core area at top)
+            ctx.fillStyle = 'rgba(255, 100, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.15);
+            ctx.strokeStyle = 'rgba(255, 100, 0, 0.3)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height * 0.15);
+            ctx.lineTo(canvas.width, canvas.height * 0.15);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Label
+            ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
+            ctx.font = '10px Courier New';
+            ctx.fillText('CORE BOUNDARY', 10, 12);
+
+            // Draw energy carriers
+            for (const e of heatParticles.energyCarriers) {
+                const alpha = Math.min(1, e.life / 50) * e.energy;
+
+                // Glow
+                const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius * 4);
+                gradient.addColorStop(0, `rgba(255, 50, 100, ${alpha})`);
+                gradient.addColorStop(1, 'rgba(255, 50, 100, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.radius * 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = `rgba(255, 100, 150, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw coolant particles
+            for (const c of heatParticles.coolant) {
+                // Color based on energy (blue = cold, red = hot)
+                const r = Math.floor(c.energy * 255);
+                const g = Math.floor(50 + (1 - c.energy) * 50);
+                const b = Math.floor((1 - c.energy) * 255);
+
+                // Size based on energy (hotter = slightly larger visual)
+                const displayRadius = c.radius * (0.8 + c.energy * 0.4);
+
+                // Glow
+                const gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, displayRadius * 2);
+                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, displayRadius * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, displayRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== UI UPDATES ====================
+
+        function updateUI() {
+            // Update readouts
+            document.getElementById('power-output').textContent = Math.round(state.powerOutput);
+            document.getElementById('core-temp').textContent = Math.round(state.coreTemp);
+            document.getElementById('coolant-in').textContent = Math.round(state.coolantTempIn);
+            document.getElementById('coolant-out').textContent = Math.round(state.coolantTempOut);
+
+            // Update header
+            const minutes = Math.floor(state.simTime / 3600);
+            const seconds = Math.floor((state.simTime % 3600) / 60);
+            const frames = Math.floor(state.simTime % 60);
+            document.getElementById('sim-time').textContent =
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
+            document.getElementById('cycle-count').textContent = state.cycleCount;
+
+            // Update reactor state indicator
+            const stateEl = document.getElementById('reactor-state');
+            stateEl.classList.remove('state-stable', 'state-warning', 'state-critical');
+
+            if (state.coreTemp >= state.criticalTemp || state.powerOutput > 900) {
+                stateEl.textContent = 'CRITICAL';
+                stateEl.classList.add('state-critical');
+            } else if (state.coreTemp >= state.warningTemp ||
+                       state.powerOutput < state.targetMin ||
+                       state.powerOutput > state.targetMax) {
+                stateEl.textContent = 'WARNING';
+                stateEl.classList.add('state-warning');
+            } else {
+                stateEl.textContent = 'STABLE';
+                stateEl.classList.add('state-stable');
+            }
+
+            // Color code readouts based on state
+            const powerEl = document.getElementById('power-output');
+            if (state.powerOutput >= state.targetMin && state.powerOutput <= state.targetMax) {
+                powerEl.style.color = '#00ff88';
+            } else if (state.powerOutput > state.targetMax * 1.5) {
+                powerEl.style.color = '#ff3333';
+            } else {
+                powerEl.style.color = '#ffaa00';
+            }
+
+            const tempEl = document.getElementById('core-temp');
+            if (state.coreTemp < state.warningTemp) {
+                tempEl.style.color = '#00ff88';
+            } else if (state.coreTemp < state.criticalTemp) {
+                tempEl.style.color = '#ffaa00';
+            } else {
+                tempEl.style.color = '#ff3333';
+            }
+        }
+
+        // ==================== INITIALIZATION ====================
+
+        let coreCanvas, coreCtx, heatCanvas, heatCtx;
+
+        function resizeCanvases() {
+            const coreContainer = document.querySelector('#core-canvas').parentElement;
+            const heatContainer = document.querySelector('#heat-canvas').parentElement;
+
+            coreCanvas.width = coreContainer.clientWidth;
+            coreCanvas.height = coreContainer.clientHeight;
+
+            heatCanvas.width = heatContainer.clientWidth;
+            heatCanvas.height = heatContainer.clientHeight;
+
+            // Reinitialize particles on resize
+            initFuelParticles(coreCanvas);
+            initCoolantParticles(heatCanvas);
+            updateControlRods(coreCanvas);
+        }
+
+        function init() {
+            // Get canvases
+            coreCanvas = document.getElementById('core-canvas');
+            coreCtx = coreCanvas.getContext('2d');
+            heatCanvas = document.getElementById('heat-canvas');
+            heatCtx = heatCanvas.getContext('2d');
+
+            // Setup canvas sizes
+            resizeCanvases();
+            window.addEventListener('resize', resizeCanvases);
+
+            // Setup controls
+            const rodSlider = document.getElementById('rod-slider');
+            const coolantSlider = document.getElementById('coolant-slider');
+
+            rodSlider.addEventListener('input', (e) => {
+                state.rodPosition = parseInt(e.target.value);
+                document.getElementById('rod-value').textContent = state.rodPosition;
+                updateControlRods(coreCanvas);
+            });
+
+            coolantSlider.addEventListener('input', (e) => {
+                state.coolantFlow = parseInt(e.target.value);
+                document.getElementById('coolant-value').textContent = state.coolantFlow;
+            });
+
+            // Setup tabs
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(btn.dataset.tab).classList.add('active');
+
+                    // Resize canvases when switching to particle view
+                    if (btn.dataset.tab === 'particle-view') {
+                        setTimeout(resizeCanvases, 10);
+                    }
+                });
+            });
+
+            // Start simulation
+            gameLoop();
+        }
+
+        function gameLoop() {
+            const dt = 1;
+
+            // Update physics
+            updatePhysics(dt);
+            updateCoreParticles(coreCanvas, dt);
+            updateHeatParticles(heatCanvas, dt);
+
+            // Update control rods periodically
+            if (state.cycleCount % 30 === 0) {
+                updateControlRods(coreCanvas);
+            }
+
+            // Render
+            drawCore(coreCtx, coreCanvas);
+            drawHeatExchanger(heatCtx, heatCanvas);
+
+            // Update UI
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start when DOM is ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
