@@ -391,12 +391,12 @@
     </header>
 
     <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="control-room">Control Room</button>
-        <button class="tab-btn" data-tab="particle-view">Particle View</button>
+        <button class="tab-btn" data-tab="control-room">Control Room</button>
+        <button class="tab-btn active" data-tab="particle-view">Particle View</button>
     </nav>
 
     <!-- Control Room Tab -->
-    <div id="control-room" class="tab-content active">
+    <div id="control-room" class="tab-content">
         <div class="control-room">
             <!-- Controls Panel -->
             <div class="panel">
@@ -502,12 +502,12 @@
     </div>
 
     <!-- Particle View Tab -->
-    <div id="particle-view" class="tab-content">
+    <div id="particle-view" class="tab-content active">
         <div class="particle-view">
             <!-- Reactor Core Panel -->
             <div class="particle-panel">
                 <div class="particle-header">Panel A: Reactor Core</div>
-                <div class="particle-canvas-container">
+                <div class="particle-canvas-container" style="height: 350px;">
                     <canvas id="core-canvas" class="particle-canvas"></canvas>
                 </div>
                 <div class="particle-legend">
@@ -1428,13 +1428,21 @@
             const coreContainer = document.querySelector('#core-canvas').parentElement;
             const heatContainer = document.querySelector('#heat-canvas').parentElement;
 
-            coreCanvas.width = coreContainer.clientWidth;
-            coreCanvas.height = coreContainer.clientHeight;
+            // Get dimensions, use fallback if container reports 0
+            let coreWidth = coreContainer.clientWidth || coreContainer.offsetWidth || 600;
+            let coreHeight = coreContainer.clientHeight || coreContainer.offsetHeight || 350;
+            let heatWidth = heatContainer.clientWidth || heatContainer.offsetWidth || 1200;
+            let heatHeight = heatContainer.clientHeight || heatContainer.offsetHeight || 400;
 
-            heatCanvas.width = heatContainer.clientWidth;
-            heatCanvas.height = heatContainer.clientHeight;
+            // Set canvas dimensions
+            coreCanvas.width = coreWidth;
+            coreCanvas.height = coreHeight;
+            heatCanvas.width = heatWidth;
+            heatCanvas.height = heatHeight;
 
-            // Only initialize particles if canvas has valid dimensions
+            console.log('Canvas sizes:', coreWidth, coreHeight, heatWidth, heatHeight);
+
+            // Initialize particles
             if (coreCanvas.width > 0 && coreCanvas.height > 0) {
                 initFuelParticles(coreCanvas);
                 updateControlRods(coreCanvas);
@@ -1452,8 +1460,13 @@
             heatCanvas = document.getElementById('heat-canvas');
             heatCtx = heatCanvas.getContext('2d');
 
-            // Setup canvas sizes
-            resizeCanvases();
+            // Delay initialization to ensure DOM is fully rendered
+            setTimeout(() => {
+                resizeCanvases();
+                // Start simulation after canvases are ready
+                gameLoop();
+            }, 100);
+
             window.addEventListener('resize', resizeCanvases);
 
             // Setup controls
@@ -1517,9 +1530,6 @@
                     }
                 });
             });
-
-            // Start simulation
-            gameLoop();
         }
 
         function gameLoop() {
