@@ -748,7 +748,7 @@
             const coolantRows = Math.floor((canvas.height) / coolantSpacing);
 
             const inletTemp = heatSettings.inletTemp / 100;
-            const coldSpeed = inletTemp * 2;  // Very slow for cold
+            const randomSpeed = 2 + inletTemp * 3;  // Base random motion + inlet temp contribution
             const flowVy = (heatSettings.coolantFlow / 100) * 3 + 1;
 
             for (let col = 0; col < coolantCols; col++) {
@@ -756,12 +756,12 @@
                     const x = coolantStartX + col * coolantSpacing + (Math.random() - 0.5) * r;
                     const y = row * coolantSpacing + (Math.random() - 0.5) * r;
 
-                    // Cold particles: slow, flowing downward
+                    // Cold particles with random thermal motion for collisions
                     heatParticles.coolant.push({
                         x: x,
                         y: y,
-                        vx: (Math.random() - 0.5) * coldSpeed,  // Minimal horizontal motion
-                        vy: flowVy + Math.random() * 0.5,  // Downward flow
+                        vx: (Math.random() - 0.5) * randomSpeed * 2,  // Random horizontal motion
+                        vy: flowVy + (Math.random() - 0.5) * randomSpeed,  // Flow + random vertical
                         radius: r
                     });
                 }
@@ -776,16 +776,16 @@
         // Spawn a new COLD coolant particle at top of coolant region
         function spawnCoolantParticle(canvas, coolantStart) {
             const r = heatSettings.particleRadius;
-            // Cold particles: slow speed, mostly downward flow
-            const inletTemp = heatSettings.inletTemp / 100;  // 0-0.5 range
-            const coldSpeed = inletTemp * 2;  // Very slow for cold
+            // Cold particles with random thermal motion
+            const inletTemp = heatSettings.inletTemp / 100;
+            const randomSpeed = 2 + inletTemp * 3;  // Base random motion + inlet temp
             const flowVy = (heatSettings.coolantFlow / 100) * 3 + 1;  // Downward flow
 
             heatParticles.coolant.push({
                 x: coolantStart + r + Math.random() * (canvas.width - coolantStart - r * 2),
                 y: -r,  // Start just above top edge
-                vx: (Math.random() - 0.5) * coldSpeed,  // Minimal horizontal
-                vy: flowVy,  // Downward flow
+                vx: (Math.random() - 0.5) * randomSpeed * 2,  // Random horizontal
+                vy: flowVy + (Math.random() - 0.5) * randomSpeed,  // Flow + random vertical
                 radius: r
             });
         }
