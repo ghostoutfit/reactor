@@ -1115,19 +1115,27 @@
             const coolantStart = barrierEnd;
             const r = heatSettings.particleRadius;
 
-            // === Update Fuel Particles (tethered, hot) ===
+            // === Update Fuel Particles (tethered, tracks temperature slider) ===
             for (const fuel of heatParticles.fuel) {
                 updateTetheredParticle(fuel, simDt);
 
-                // Maintain minimum energy (fuel is always hot - tight range around high temp)
+                // Fuel tracks the temperature slider (both heating and cooling)
                 const speed = getSpeed(fuel);
-                const minSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed * 0.85;
-                if (speed < minSpeed) {
-                    // Aggressive boost to keep fuel consistently hot
+                const targetSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed;
+                const minSpeed = targetSpeed * 0.85;
+                const maxSpeed = targetSpeed * 1.15;
+
+                if (speed < minSpeed && targetSpeed > 0) {
+                    // Heat up if too cold
                     const boost = (minSpeed - speed) * 0.5;
                     const angle = Math.random() * Math.PI * 2;
                     fuel.vx += Math.cos(angle) * boost;
                     fuel.vy += Math.sin(angle) * boost;
+                } else if (speed > maxSpeed && speed > 0.1) {
+                    // Cool down if too hot (dampen toward target)
+                    const dampen = 0.95;
+                    fuel.vx *= dampen;
+                    fuel.vy *= dampen;
                 }
             }
 
