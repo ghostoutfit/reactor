@@ -728,7 +728,9 @@
                 for (let row = 0; row < fuelRows; row++) {
                     const anchorX = fuelStartX + col * fuelSpacing;
                     const anchorY = fuelStartY + row * fuelSpacing;
-                    const speed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed;
+                    // All fuel particles start hot - tight range around high temp
+                    const baseSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed;
+                    const speed = baseSpeed * (0.85 + Math.random() * 0.15);  // 85-100% of max
                     const angle = Math.random() * Math.PI * 2;
                     heatParticles.fuel.push({
                         x: anchorX,
@@ -1117,11 +1119,12 @@
             for (const fuel of heatParticles.fuel) {
                 updateTetheredParticle(fuel, simDt);
 
-                // Maintain minimum energy (fuel is always hot)
+                // Maintain minimum energy (fuel is always hot - tight range around high temp)
                 const speed = getSpeed(fuel);
-                const minSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed * 0.5;
+                const minSpeed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed * 0.85;
                 if (speed < minSpeed) {
-                    const boost = (minSpeed - speed) * 0.1;
+                    // Aggressive boost to keep fuel consistently hot
+                    const boost = (minSpeed - speed) * 0.5;
                     const angle = Math.random() * Math.PI * 2;
                     fuel.vx += Math.cos(angle) * boost;
                     fuel.vy += Math.sin(angle) * boost;
