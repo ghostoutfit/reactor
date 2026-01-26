@@ -714,13 +714,15 @@
             const barrierEnd = canvas.width * 0.32;
             const coolantStart = barrierEnd;
 
-            // === FUEL REGION: Crystal lattice, rightmost column touches barrier ===
+            // === FUEL REGION: Crystal lattice, rightmost column AGAINST barrier ===
             const fuelSpacing = r * 2.2;
-            const fuelStartX = r + 5;
             const fuelStartY = r + 5;
 
-            const fuelCols = Math.floor((fuelEnd - fuelStartX) / fuelSpacing);
+            // Calculate columns so rightmost fuel touches barrier
+            const fuelCols = Math.floor((fuelEnd - r) / fuelSpacing);
             const fuelRows = Math.floor((canvas.height - fuelStartY * 2) / fuelSpacing);
+            // Start X so last column is at barrierStart (touching barrier)
+            const fuelStartX = barrierStart - (fuelCols - 1) * fuelSpacing;
 
             for (let col = 0; col < fuelCols; col++) {
                 for (let row = 0; row < fuelRows; row++) {
@@ -771,9 +773,9 @@
                 }
             }
 
-            // === COOLANT: Dense grid, LEFT edge must be able to hit barrier ===
+            // === COOLANT: Half density, LEFT edge must be able to hit barrier ===
             // Start coolant right at the barrier edge so they collide
-            const coolantSpacing = r * 2.0;
+            const coolantSpacing = r * 2.8;  // Larger spacing = half the particles
             const coolantStartX = coolantStart;  // Start right at barrier edge
             const coolantCols = Math.floor((canvas.width - coolantStartX - r) / coolantSpacing);
             const coolantRows = Math.floor((canvas.height - r * 2) / coolantSpacing);
