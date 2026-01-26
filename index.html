@@ -1135,12 +1135,16 @@
 
             // === Update Coolant Particles (2D pipe: open top/bottom, flow through) ===
             let despawnCount = 0;
+            const baseFlowVy = (heatSettings.coolantFlow / 100) * 3 + 1;  // Target flow speed
+
             for (let i = heatParticles.coolant.length - 1; i >= 0; i--) {
                 const c = heatParticles.coolant[i];
 
-                // Add constant downward flow bias
-                const flowVy = (heatSettings.coolantFlow / 100) * 0.05;
-                c.vy += flowVy;
+                // Maintain constant downward flow (don't accelerate, just maintain)
+                // Only adjust vy toward target if it's slower than flow
+                if (c.vy < baseFlowVy) {
+                    c.vy = baseFlowVy;
+                }
 
                 // Update position
                 c.x += c.vx * simDt * 60;
