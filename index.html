@@ -657,10 +657,9 @@
             fissionEvents: []
         };
 
-        // Heat exchanger particles (new physics-based system)
+        // Heat exchanger particles (direct contact system)
         const heatParticles = {
-            fuel: [],       // Tethered hot particles on left
-            barrier: [],    // Tethered barrier particles in middle
+            fuel: [],       // Tethered crystal lattice on left
             coolant: []     // Flowing coolant particles on right
         };
 
@@ -699,30 +698,27 @@
             }
         }
 
-        // Initialize heat exchanger particles (fuel, barrier, coolant regions)
+        // Initialize heat exchanger particles (fuel and coolant regions - direct contact)
         function initHeatExchangerParticles(canvas) {
             heatParticles.fuel = [];
-            heatParticles.barrier = [];
             heatParticles.coolant = [];
 
             const r = heatSettings.particleRadius;
 
-            // Region boundaries - barrier is thin but MUST touch both fuel and coolant
-            // Fuel: 0-25%, Barrier: 25-32%, Coolant: 32-100%
-            const fuelEnd = canvas.width * 0.25;
-            const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.32;
-            const coolantStart = barrierEnd;
+            // Region boundaries - fuel on left, coolant on right (direct contact)
+            // Fuel: 0-30%, Coolant: 30-100%
+            const fuelEnd = canvas.width * 0.30;
+            const coolantStart = fuelEnd;
 
-            // === FUEL REGION: Crystal lattice, rightmost column AGAINST barrier ===
+            // === FUEL REGION: Crystal lattice, rightmost column at boundary ===
             const fuelSpacing = r * 2.2;
             const fuelStartY = r + 5;
 
-            // Calculate columns so rightmost fuel touches barrier
+            // Calculate columns so rightmost fuel touches coolant region
             const fuelCols = Math.floor((fuelEnd - r) / fuelSpacing);
             const fuelRows = Math.floor((canvas.height - fuelStartY * 2) / fuelSpacing);
-            // Start X so last column is at barrierStart (touching barrier)
-            const fuelStartX = barrierStart - (fuelCols - 1) * fuelSpacing;
+            // Start X so last column is at fuelEnd (touching coolant)
+            const fuelStartX = fuelEnd - (fuelCols - 1) * fuelSpacing;
 
             for (let col = 0; col < fuelCols; col++) {
                 for (let row = 0; row < fuelRows; row++) {
@@ -737,37 +733,6 @@
                         y: anchorY,
                         vx: Math.cos(angle) * speed,
                         vy: Math.sin(angle) * speed,
-                        anchorX: anchorX,
-                        anchorY: anchorY,
-                        radius: r
-                    });
-                }
-            }
-
-            // === BARRIER: Spans from fuel edge to coolant edge ===
-            // Must be positioned so fuel can hit left side and coolant can hit right side
-            const barrierSpacingX = r * 2.0;
-            const barrierSpacingY = r * 2.0;
-            const barrierStartY = r + 5;
-
-            // Calculate how many columns fit in the barrier region
-            const barrierWidth = barrierEnd - barrierStart;
-            const barrierCols = Math.max(3, Math.floor(barrierWidth / barrierSpacingX));
-            const barrierRows = Math.floor((canvas.height - barrierStartY * 2) / barrierSpacingY);
-
-            // Center the barrier columns in the barrier region
-            const actualBarrierWidth = (barrierCols - 1) * barrierSpacingX;
-            const barrierStartX = barrierStart + (barrierWidth - actualBarrierWidth) / 2;
-
-            for (let col = 0; col < barrierCols; col++) {
-                for (let row = 0; row < barrierRows; row++) {
-                    const anchorX = barrierStartX + col * barrierSpacingX;
-                    const anchorY = barrierStartY + row * barrierSpacingY;
-                    heatParticles.barrier.push({
-                        x: anchorX,
-                        y: anchorY,
-                        vx: 0,
-                        vy: 0,
                         anchorX: anchorX,
                         anchorY: anchorY,
                         radius: r
@@ -803,9 +768,8 @@
             }
 
             console.log('Particles initialized - Fuel:', heatParticles.fuel.length,
-                        'Barrier:', heatParticles.barrier.length,
                         'Coolant:', heatParticles.coolant.length,
-                        'Barrier X range:', barrierStartX.toFixed(0), 'to', (barrierStartX + actualBarrierWidth).toFixed(0),
+                        'Fuel ends at:', fuelEnd.toFixed(0),
                         'Coolant starts at:', coolantStartX.toFixed(0));
         }
 
@@ -1109,10 +1073,8 @@
             const simDt = 0.016; // Fixed timestep for stability
 
             // Region boundaries (must match initHeatExchangerParticles)
-            const fuelEnd = canvas.width * 0.25;
-            const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.32;  // 7% barrier
-            const coolantStart = barrierEnd;
+            const fuelEnd = canvas.width * 0.30;
+            const coolantStart = fuelEnd;
             const r = heatSettings.particleRadius;
 
             // === Update Fuel Particles (tethered, tracks temperature slider) ===
@@ -1139,11 +1101,6 @@
                 }
             }
 
-            // === Update Barrier Particles (tethered) ===
-            for (const barrier of heatParticles.barrier) {
-                updateTetheredParticle(barrier, simDt);
-            }
-
             // === Update Coolant Particles (2D pipe: open top/bottom, flow through) ===
             let despawnCount = 0;
             const baseFlowVy = (heatSettings.coolantFlow / 100) * 3 + 1;  // Target flow speed
@@ -1161,8 +1118,8 @@
                 c.x += c.vx * simDt * 60;
                 c.y += c.vy * simDt * 60;
 
-                // Bounce off LEFT wall (barrier side) - but allow reaching barrier for collisions
-                const leftLimit = barrierStart;
+                // Bounce off LEFT wall (fuel side) - but allow reaching fuel for collisions
+                const leftLimit = fuelEnd;
                 if (c.x < leftLimit + r) {
                     c.x = leftLimit + r;
                     c.vx = Math.abs(c.vx) * 0.8;
@@ -1210,24 +1167,10 @@
                 }
             }
 
-            // Fuel-Barrier collisions (energy transfer from fuel to barrier)
+            // Fuel-Coolant collisions (direct energy transfer from fuel to coolant)
             for (const fuel of heatParticles.fuel) {
-                for (const barrier of heatParticles.barrier) {
-                    elasticCollision(fuel, barrier);
-                }
-            }
-
-            // Barrier-Barrier collisions
-            for (let i = 0; i < heatParticles.barrier.length; i++) {
-                for (let j = i + 1; j < heatParticles.barrier.length; j++) {
-                    elasticCollision(heatParticles.barrier[i], heatParticles.barrier[j]);
-                }
-            }
-
-            // Barrier-Coolant collisions (energy transfer from barrier to coolant)
-            for (const barrier of heatParticles.barrier) {
                 for (const coolant of heatParticles.coolant) {
-                    elasticCollision(barrier, coolant);
+                    elasticCollision(fuel, coolant);
                 }
             }
 
@@ -1319,32 +1262,24 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Region boundaries (must match initHeatExchangerParticles)
-            const fuelEnd = canvas.width * 0.25;
-            const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.32;  // 7% barrier
-            const coolantStart = barrierEnd;
+            const fuelEnd = canvas.width * 0.30;
+            const coolantStart = fuelEnd;
 
             // Draw region backgrounds
             // Fuel region (dark red tint)
             ctx.fillStyle = 'rgba(100, 20, 20, 0.3)';
             ctx.fillRect(0, 0, fuelEnd, canvas.height);
 
-            // Barrier region (dark gray)
-            ctx.fillStyle = 'rgba(50, 50, 60, 0.4)';
-            ctx.fillRect(barrierStart, 0, barrierEnd - barrierStart, canvas.height);
-
             // Coolant region (dark blue tint)
             ctx.fillStyle = 'rgba(20, 30, 80, 0.3)';
             ctx.fillRect(coolantStart, 0, canvas.width - coolantStart, canvas.height);
 
-            // Draw region separators
+            // Draw region separator
             ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
             ctx.moveTo(fuelEnd, 0);
             ctx.lineTo(fuelEnd, canvas.height);
-            ctx.moveTo(barrierEnd, 0);
-            ctx.lineTo(barrierEnd, canvas.height);
             ctx.stroke();
             ctx.setLineDash([]);
 
@@ -1352,8 +1287,6 @@
             ctx.font = '11px Courier New';
             ctx.fillStyle = 'rgba(255, 150, 150, 0.7)';
             ctx.fillText('FUEL', 10, 15);
-            ctx.fillStyle = 'rgba(180, 180, 180, 0.7)';
-            ctx.fillText('BARRIER', barrierStart + 5, 15);
             ctx.fillStyle = 'rgba(150, 150, 255, 0.7)';
             ctx.fillText('COOLANT', coolantStart + 5, 15);
 
@@ -1413,14 +1346,9 @@
                 }
             }
 
-            // Draw fuel particles (always hot, tethered)
+            // Draw fuel particles (tethered crystal lattice)
             for (const fuel of heatParticles.fuel) {
                 drawParticle(fuel, true);
-            }
-
-            // Draw barrier particles (tethered)
-            for (const barrier of heatParticles.barrier) {
-                drawParticle(barrier, true);
             }
 
             // Draw coolant particles (flowing)
