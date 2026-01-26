@@ -706,24 +706,27 @@
             heatParticles.coolant = [];
 
             const r = heatSettings.particleRadius;
-            const padding = r * 2;
 
-            // Region boundaries (left to right: fuel 30%, barrier 20%, coolant 50%)
-            const fuelEnd = canvas.width * 0.30;
+            // Region boundaries (left to right: fuel 25%, barrier 15%, coolant 60%)
+            const fuelEnd = canvas.width * 0.25;
             const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.50;
+            const barrierEnd = canvas.width * 0.40;
             const coolantStart = barrierEnd;
 
-            // Fuel region: grid of tethered hot particles
-            const fuelCols = 4;
-            const fuelRows = Math.floor((canvas.height - padding * 2) / (r * 3));
-            const fuelSpacingX = (fuelEnd - padding * 2) / (fuelCols + 1);
-            const fuelSpacingY = (canvas.height - padding * 2) / (fuelRows + 1);
+            // === FUEL REGION: Crystal lattice with even spacing ===
+            // Use exact spacing of 2.2 * radius for a tight but non-overlapping lattice
+            const fuelSpacing = r * 2.2;
+            const fuelStartX = r + 5;
+            const fuelStartY = r + 5;
+
+            // Calculate how many fit
+            const fuelCols = Math.floor((fuelEnd - fuelStartX - r) / fuelSpacing);
+            const fuelRows = Math.floor((canvas.height - fuelStartY * 2) / fuelSpacing);
 
             for (let col = 0; col < fuelCols; col++) {
                 for (let row = 0; row < fuelRows; row++) {
-                    const anchorX = padding + fuelSpacingX * (col + 1);
-                    const anchorY = padding + fuelSpacingY * (row + 1);
+                    const anchorX = fuelStartX + col * fuelSpacing;
+                    const anchorY = fuelStartY + row * fuelSpacing;
                     // Hot particles: high initial velocity
                     const speed = (heatSettings.fuelTemp / 100) * heatSettings.maxSpeed;
                     const angle = Math.random() * Math.PI * 2;
@@ -739,16 +742,20 @@
                 }
             }
 
-            // Barrier region: 4 columns of tethered particles
-            const barrierCols = 4;
-            const barrierRows = Math.floor((canvas.height - padding * 2) / (r * 2.5));
-            const barrierSpacingX = (barrierEnd - barrierStart) / (barrierCols + 1);
-            const barrierSpacingY = (canvas.height - padding * 2) / (barrierRows + 1);
+            // === BARRIER REGION: Tight grid touching fuel and each other ===
+            // Spacing of 2*r means particles just touch
+            const barrierSpacing = r * 2.0;
+            // Start barrier right at fuel edge so they can collide
+            const barrierStartX = fuelEnd - r * 0.5;
+            const barrierStartY = r + 5;
+
+            const barrierCols = Math.floor((barrierEnd - barrierStartX) / barrierSpacing);
+            const barrierRows = Math.floor((canvas.height - barrierStartY * 2) / barrierSpacing);
 
             for (let col = 0; col < barrierCols; col++) {
                 for (let row = 0; row < barrierRows; row++) {
-                    const anchorX = barrierStart + barrierSpacingX * (col + 1);
-                    const anchorY = padding + barrierSpacingY * (row + 1);
+                    const anchorX = barrierStartX + col * barrierSpacing;
+                    const anchorY = barrierStartY + row * barrierSpacing;
                     heatParticles.barrier.push({
                         x: anchorX,
                         y: anchorY,
@@ -761,24 +768,46 @@
                 }
             }
 
-            // Coolant region: initially spawn some particles
-            const initialCoolant = 30;
-            for (let i = 0; i < initialCoolant; i++) {
-                spawnCoolantParticle(canvas, coolantStart);
+            // === COOLANT REGION: Dense, actively moving particles ===
+            // Fill the region with many particles that have random velocities
+            const coolantSpacing = r * 2.5;
+            const coolantCols = Math.floor((canvas.width - coolantStart - r) / coolantSpacing);
+            const coolantRows = Math.floor((canvas.height - r * 2) / coolantSpacing);
+
+            for (let col = 0; col < coolantCols; col++) {
+                for (let row = 0; row < coolantRows; row++) {
+                    // Add some randomness to position
+                    const x = coolantStart + r + col * coolantSpacing + (Math.random() - 0.5) * r;
+                    const y = r + row * coolantSpacing + (Math.random() - 0.5) * r;
+
+                    // Give coolant particles active random velocities so they bounce around
+                    const baseSpeed = 2 + Math.random() * 3;
+                    const angle = Math.random() * Math.PI * 2;
+
+                    heatParticles.coolant.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * baseSpeed,
+                        vy: Math.sin(angle) * baseSpeed + 0.5, // slight downward bias
+                        radius: r
+                    });
+                }
             }
         }
 
         // Spawn a new coolant particle at top of coolant region
         function spawnCoolantParticle(canvas, coolantStart) {
             const r = heatSettings.particleRadius;
-            const inletSpeed = (heatSettings.inletTemp / 100) * heatSettings.maxSpeed * 0.3;
-            const flowVy = (heatSettings.coolantFlow / 100) * 3 + 0.5;
+            // Give new coolant particles active movement
+            const baseSpeed = 2 + Math.random() * 2;
+            const angle = Math.random() * Math.PI * 2;
+            const flowVy = (heatSettings.coolantFlow / 100) * 2 + 1;
 
             heatParticles.coolant.push({
                 x: coolantStart + r + Math.random() * (canvas.width - coolantStart - r * 2),
                 y: r + Math.random() * 20,
-                vx: (Math.random() - 0.5) * inletSpeed * 2,
-                vy: flowVy + Math.random() * inletSpeed,
+                vx: Math.cos(angle) * baseSpeed,
+                vy: flowVy + Math.random() * baseSpeed,
                 radius: r
             });
         }
@@ -1065,10 +1094,10 @@
         function updateHeatParticles(canvas, dt) {
             const simDt = 0.016; // Fixed timestep for stability
 
-            // Region boundaries
-            const fuelEnd = canvas.width * 0.30;
+            // Region boundaries (must match initHeatExchangerParticles)
+            const fuelEnd = canvas.width * 0.25;
             const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.50;
+            const barrierEnd = canvas.width * 0.40;
             const coolantStart = barrierEnd;
             const r = heatSettings.particleRadius;
 
@@ -1248,10 +1277,10 @@
         function drawHeatExchanger(ctx, canvas) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Region boundaries
-            const fuelEnd = canvas.width * 0.30;
+            // Region boundaries (must match initHeatExchangerParticles)
+            const fuelEnd = canvas.width * 0.25;
             const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.50;
+            const barrierEnd = canvas.width * 0.40;
             const coolantStart = barrierEnd;
 
             // Draw region backgrounds
