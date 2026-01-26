@@ -707,13 +707,14 @@
 
             const r = heatSettings.particleRadius;
 
-            // Region boundaries (left to right: fuel 25%, barrier 7%, coolant 68%)
+            // Region boundaries - barrier is thin but MUST touch both fuel and coolant
+            // Fuel: 0-25%, Barrier: 25-32%, Coolant: 32-100%
             const fuelEnd = canvas.width * 0.25;
             const barrierStart = fuelEnd;
-            const barrierEnd = canvas.width * 0.32;  // 7% barrier
+            const barrierEnd = canvas.width * 0.32;
             const coolantStart = barrierEnd;
 
-            // === FUEL REGION: Crystal lattice with even spacing ===
+            // === FUEL REGION: Crystal lattice, rightmost column touches barrier ===
             const fuelSpacing = r * 2.2;
             const fuelStartX = r + 5;
             const fuelStartY = r + 5;
@@ -739,15 +740,20 @@
                 }
             }
 
-            // === BARRIER REGION: Tight vertical column, touching fuel on left ===
-            // Position barrier so rightmost fuel particles can collide with leftmost barrier
-            const barrierSpacingY = r * 2.0;  // Touching vertically
-            const barrierCols = 3;  // Just 3 columns for thin barrier
+            // === BARRIER: Spans from fuel edge to coolant edge ===
+            // Must be positioned so fuel can hit left side and coolant can hit right side
             const barrierSpacingX = r * 2.0;
-            // Start barrier overlapping with fuel edge for collisions
-            const barrierStartX = fuelEnd - r;
+            const barrierSpacingY = r * 2.0;
             const barrierStartY = r + 5;
+
+            // Calculate how many columns fit in the barrier region
+            const barrierWidth = barrierEnd - barrierStart;
+            const barrierCols = Math.max(3, Math.floor(barrierWidth / barrierSpacingX));
             const barrierRows = Math.floor((canvas.height - barrierStartY * 2) / barrierSpacingY);
+
+            // Center the barrier columns in the barrier region
+            const actualBarrierWidth = (barrierCols - 1) * barrierSpacingX;
+            const barrierStartX = barrierStart + (barrierWidth - actualBarrierWidth) / 2;
 
             for (let col = 0; col < barrierCols; col++) {
                 for (let row = 0; row < barrierRows; row++) {
@@ -765,27 +771,27 @@
                 }
             }
 
-            // === COOLANT REGION: VERY dense, actively moving particles ===
-            // 10x more particles - use tighter spacing
-            const coolantSpacing = r * 1.8;  // Tighter packing
-            const coolantCols = Math.floor((canvas.width - coolantStart - r) / coolantSpacing);
+            // === COOLANT: Dense grid, LEFT edge must be able to hit barrier ===
+            // Start coolant right at the barrier edge so they collide
+            const coolantSpacing = r * 2.0;
+            const coolantStartX = coolantStart;  // Start right at barrier edge
+            const coolantCols = Math.floor((canvas.width - coolantStartX - r) / coolantSpacing);
             const coolantRows = Math.floor((canvas.height - r * 2) / coolantSpacing);
 
             for (let col = 0; col < coolantCols; col++) {
                 for (let row = 0; row < coolantRows; row++) {
-                    // Randomize position slightly
-                    const x = coolantStart + r + col * coolantSpacing + (Math.random() - 0.5) * r * 0.5;
-                    const y = r + row * coolantSpacing + (Math.random() - 0.5) * r * 0.5;
+                    const x = coolantStartX + r + col * coolantSpacing;
+                    const y = r + row * coolantSpacing;
 
-                    // Active random velocities - enough to bounce around
-                    const baseSpeed = 3 + Math.random() * 4;
+                    // Random velocities with leftward bias so they hit the barrier
+                    const speed = 2 + Math.random() * 3;
                     const angle = Math.random() * Math.PI * 2;
 
                     heatParticles.coolant.push({
                         x: x,
                         y: y,
-                        vx: Math.cos(angle) * baseSpeed,
-                        vy: Math.sin(angle) * baseSpeed,
+                        vx: Math.cos(angle) * speed - 1,  // Slight left bias to hit barrier
+                        vy: Math.sin(angle) * speed,
                         radius: r
                     });
                 }
@@ -793,7 +799,9 @@
 
             console.log('Particles initialized - Fuel:', heatParticles.fuel.length,
                         'Barrier:', heatParticles.barrier.length,
-                        'Coolant:', heatParticles.coolant.length);
+                        'Coolant:', heatParticles.coolant.length,
+                        'Barrier X range:', barrierStartX.toFixed(0), 'to', (barrierStartX + actualBarrierWidth).toFixed(0),
+                        'Coolant starts at:', coolantStartX.toFixed(0));
         }
 
         // Spawn a new coolant particle at top of coolant region
@@ -1122,43 +1130,45 @@
                 updateTetheredParticle(barrier, simDt);
             }
 
-            // === Update Coolant Particles (flowing) ===
-            const baseFlowVy = (heatSettings.coolantFlow / 100) * 2 + 0.3;
-
-            for (let i = heatParticles.coolant.length - 1; i >= 0; i--) {
-                const c = heatParticles.coolant[i];
-
-                // Add base downward flow
-                c.vy += baseFlowVy * 0.01;
-
+            // === Update Coolant Particles (bouncing, can reach barrier) ===
+            for (const c of heatParticles.coolant) {
                 // Update position
                 c.x += c.vx * simDt * 60;
                 c.y += c.vy * simDt * 60;
 
-                // Bounce off walls (except bottom - despawn there)
-                if (c.x < coolantStart + r) {
-                    c.x = coolantStart + r;
-                    c.vx = Math.abs(c.vx) * 0.8;
-                }
+                // Bounce off RIGHT wall only - left side is barrier (collisions handle it)
                 if (c.x > canvas.width - r) {
                     c.x = canvas.width - r;
-                    c.vx = -Math.abs(c.vx) * 0.8;
+                    c.vx = -Math.abs(c.vx) * 0.9;
                 }
+                // Bounce off top and bottom
                 if (c.y < r) {
                     c.y = r;
-                    c.vy = Math.abs(c.vy) * 0.8;
+                    c.vy = Math.abs(c.vy) * 0.9;
+                }
+                if (c.y > canvas.height - r) {
+                    c.y = canvas.height - r;
+                    c.vy = -Math.abs(c.vy) * 0.9;
                 }
 
-                // Despawn at bottom
-                if (c.y > canvas.height + r) {
-                    heatParticles.coolant.splice(i, 1);
+                // Soft left boundary - push back if they go too far into barrier region
+                // But allow them to reach the barrier particles for collision
+                const leftLimit = barrierStart - r;  // Can reach into barrier region
+                if (c.x < leftLimit) {
+                    c.x = leftLimit;
+                    c.vx = Math.abs(c.vx) * 0.9;
                 }
-            }
 
-            // === Spawn new coolant particles ===
-            const spawnRate = (heatSettings.coolantFlow / 100) * 0.3 + 0.05;
-            if (Math.random() < spawnRate && heatParticles.coolant.length < 500) {
-                spawnCoolantParticle(canvas, coolantStart);
+                // Add slight random motion to keep things dynamic
+                c.vx += (Math.random() - 0.5) * 0.2;
+                c.vy += (Math.random() - 0.5) * 0.2;
+
+                // Damping to prevent runaway speeds
+                const speed = getSpeed(c);
+                if (speed > 10) {
+                    c.vx *= 0.95;
+                    c.vy *= 0.95;
+                }
             }
 
             // === Collision Detection ===
