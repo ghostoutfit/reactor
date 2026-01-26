@@ -591,7 +591,7 @@
                             Downward velocity + spawn rate
                         </div>
                     </div>
-                    <div class="control-group" style="margin-bottom: 0;">
+                    <div class="control-group">
                         <div class="control-label">
                             <span>Coolant Inlet Temp</span>
                             <span class="control-value"><span id="inlet-temp-value">10</span>%</span>
@@ -605,6 +605,22 @@
                         </div>
                         <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
                             Initial speed of incoming coolant
+                        </div>
+                    </div>
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <div class="control-label">
+                            <span>Flow Angle</span>
+                            <span class="control-value"><span id="flow-angle-value">0</span>°</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="flow-angle-slider" min="0" max="100" value="0">
+                            <div class="slider-labels">
+                                <span>Down</span>
+                                <span>Toward Fuel</span>
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.75em; margin-top: 8px;">
+                            Angle coolant toward fuel (0° to 60°)
                         </div>
                     </div>
                 </div>
@@ -668,6 +684,7 @@
             fuelTemp: 80,       // 10-100, initial velocity of fuel
             coolantFlow: 50,    // 10-100, downward velocity + spawn rate
             inletTemp: 10,      // 0-50, initial speed of coolant
+            flowAngle: 0,       // 0-100, flow direction (0=down, 100=60° toward fuel)
 
             // Physics constants
             springK: 100,       // Spring stiffness
@@ -749,18 +766,23 @@
 
             const inletTemp = heatSettings.inletTemp / 100;
             const randomSpeed = 2 + inletTemp * 3;  // Base random motion + inlet temp contribution
-            const flowVy = (heatSettings.coolantFlow / 100) * 3 + 1;
+            const flowSpeed = (heatSettings.coolantFlow / 100) * 3 + 1;
+
+            // Flow angle: 0 = straight down, 100 = 60° toward fuel (left)
+            const angleRad = (heatSettings.flowAngle / 100) * (Math.PI / 3);  // 0 to 60 degrees
+            const flowVx = -flowSpeed * Math.sin(angleRad);  // Negative = toward fuel (left)
+            const flowVy = flowSpeed * Math.cos(angleRad);
 
             for (let col = 0; col < coolantCols; col++) {
                 for (let row = 0; row < coolantRows; row++) {
                     const x = coolantStartX + col * coolantSpacing + (Math.random() - 0.5) * r;
                     const y = row * coolantSpacing + (Math.random() - 0.5) * r;
 
-                    // Cold particles with random thermal motion for collisions
+                    // Cold particles with random thermal motion + directional flow
                     heatParticles.coolant.push({
                         x: x,
                         y: y,
-                        vx: (Math.random() - 0.5) * randomSpeed * 2,  // Random horizontal motion
+                        vx: flowVx + (Math.random() - 0.5) * randomSpeed * 2,  // Flow direction + random
                         vy: flowVy + (Math.random() - 0.5) * randomSpeed,  // Flow + random vertical
                         radius: r
                     });
@@ -779,12 +801,17 @@
             // Cold particles with random thermal motion
             const inletTemp = heatSettings.inletTemp / 100;
             const randomSpeed = 2 + inletTemp * 3;  // Base random motion + inlet temp
-            const flowVy = (heatSettings.coolantFlow / 100) * 3 + 1;  // Downward flow
+            const flowSpeed = (heatSettings.coolantFlow / 100) * 3 + 1;
+
+            // Flow angle: 0 = straight down, 100 = 60° toward fuel (left)
+            const angleRad = (heatSettings.flowAngle / 100) * (Math.PI / 3);
+            const flowVx = -flowSpeed * Math.sin(angleRad);
+            const flowVy = flowSpeed * Math.cos(angleRad);
 
             heatParticles.coolant.push({
                 x: coolantStart + r + Math.random() * (canvas.width - coolantStart - r * 2),
                 y: -r,  // Start just above top edge
-                vx: (Math.random() - 0.5) * randomSpeed * 2,  // Random horizontal
+                vx: flowVx + (Math.random() - 0.5) * randomSpeed * 2,  // Flow direction + random
                 vy: flowVy + (Math.random() - 0.5) * randomSpeed,  // Flow + random vertical
                 radius: r
             });
@@ -1103,15 +1130,23 @@
 
             // === Update Coolant Particles (2D pipe: open top/bottom, flow through) ===
             let despawnCount = 0;
-            const baseFlowVy = (heatSettings.coolantFlow / 100) * 3 + 1;  // Target flow speed
+            const baseFlowSpeed = (heatSettings.coolantFlow / 100) * 3 + 1;
+
+            // Flow angle: 0 = straight down, 100 = 60° toward fuel (left)
+            const flowAngleRad = (heatSettings.flowAngle / 100) * (Math.PI / 3);
+            const targetFlowVx = -baseFlowSpeed * Math.sin(flowAngleRad);
+            const targetFlowVy = baseFlowSpeed * Math.cos(flowAngleRad);
 
             for (let i = heatParticles.coolant.length - 1; i >= 0; i--) {
                 const c = heatParticles.coolant[i];
 
-                // Maintain constant downward flow (don't accelerate, just maintain)
-                // Only adjust vy toward target if it's slower than flow
-                if (c.vy < baseFlowVy) {
-                    c.vy = baseFlowVy;
+                // Maintain flow direction (don't accelerate, just maintain minimum flow)
+                if (c.vy < targetFlowVy) {
+                    c.vy = targetFlowVy;
+                }
+                // Nudge horizontal toward target flow direction
+                if (targetFlowVx < 0 && c.vx > targetFlowVx) {
+                    c.vx += (targetFlowVx - c.vx) * 0.1;
                 }
 
                 // Update position
@@ -1500,6 +1535,14 @@
             inletTempSlider.addEventListener('input', (e) => {
                 heatSettings.inletTemp = parseInt(e.target.value);
                 document.getElementById('inlet-temp-value').textContent = heatSettings.inletTemp;
+            });
+
+            const flowAngleSlider = document.getElementById('flow-angle-slider');
+            flowAngleSlider.addEventListener('input', (e) => {
+                heatSettings.flowAngle = parseInt(e.target.value);
+                // Display as degrees (0-60)
+                const degrees = Math.round((heatSettings.flowAngle / 100) * 60);
+                document.getElementById('flow-angle-value').textContent = degrees;
             });
 
             // Setup tabs
