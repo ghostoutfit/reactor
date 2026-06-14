@@ -379,6 +379,105 @@
                 grid-column: span 1;
             }
         }
+        /* ==================== NEON STICK FIGURE TAB ==================== */
+        #stick-figure-tab.active {
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+
+        .neon-stage {
+            width: 100%;
+            min-height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #5500aa;
+            position: relative;
+            overflow: hidden;
+            transition: background-color 0.3s;
+            --neon-glow: #ff00ff;
+        }
+
+        .neon-stage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.09) 3px,
+                rgba(0,0,0,0.09) 4px
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .neon-word-display {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: clamp(50px, 10vw, 120px);
+            font-style: italic;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 15px #fff,
+                0 0 35px var(--neon-glow),
+                0 0 70px var(--neon-glow),
+                0 0 100px var(--neon-glow);
+            margin-bottom: 10px;
+            animation: neon-flicker 2.5s ease-in-out infinite alternate;
+            user-select: none;
+            pointer-events: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes neon-flicker {
+            0%, 89%, 100% { opacity: 1; }
+            91% { opacity: 0.72; }
+            93% { opacity: 1; }
+            95% { opacity: 0.58; }
+            97% { opacity: 1; }
+        }
+
+        #stick-canvas {
+            display: block;
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 0 8px rgba(255,255,255,0.85)) drop-shadow(0 0 22px var(--neon-glow));
+        }
+
+        .key-legend {
+            position: absolute;
+            bottom: 18px;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7em;
+            color: rgba(255,255,255,0.65);
+            padding: 0 20px;
+            z-index: 1;
+        }
+
+        .key-legend span { white-space: nowrap; }
+
+        .key-legend kbd {
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.55);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -393,6 +492,7 @@
     <nav class="tab-nav">
         <button class="tab-btn" data-tab="control-room">Control Room</button>
         <button class="tab-btn active" data-tab="particle-view">Particle View</button>
+        <button class="tab-btn" data-tab="stick-figure-tab">Vibes</button>
     </nav>
 
     <!-- Control Room Tab -->
@@ -633,6 +733,24 @@
                     <strong>Energy Conservation:</strong> Total energy stays constant—elastic collisions transfer momentum.
                     <strong>Energy Dispersal:</strong> Fast fuel particles collide with barrier → barrier conducts to coolant → coolant carries heat away. Watch energy spread from concentrated (few fast) to distributed (many slower).
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Neon Stick Figure Tab -->
+    <div id="stick-figure-tab" class="tab-content">
+        <div class="neon-stage" id="neon-stage">
+            <div class="neon-word-display" id="neon-word">HOLD A KEY</div>
+            <canvas id="stick-canvas" width="300" height="340"></canvas>
+            <div class="key-legend">
+                <span><kbd>S</kbd>SHOUT</span>
+                <span><kbd>W</kbd>WIGGLE</span>
+                <span><kbd>K</kbd>KICK</span>
+                <span><kbd>C</kbd>CLAP</span>
+                <span><kbd>J</kbd>JUMP</span>
+                <span><kbd>L</kbd>LIE DOWN</span>
+                <span><kbd>Y</kbd>YAWN</span>
+                <span><kbd>T</kbd>STOMP</span>
             </div>
         </div>
     </div>
@@ -1603,6 +1721,287 @@
 
         // Start when DOM is ready
         document.addEventListener('DOMContentLoaded', init);
+
+        // ==================== NEON STICK FIGURE TAB ====================
+        (function () {
+            const P = Math.PI;
+
+            const neonThemes = [
+                { bg: '#330077', glow: '#cc00ff' },  // idle — purple
+                { bg: '#aa0033', glow: '#ff3388' },  // shout — red-pink
+                { bg: '#004499', glow: '#00bbff' },  // wiggle — blue
+                { bg: '#883300', glow: '#ff9900' },  // kick — orange
+                { bg: '#005522', glow: '#00ff66' },  // clap — green
+                { bg: '#550088', glow: '#cc44ff' },  // jump — violet
+                { bg: '#001255', glow: '#3366ff' },  // lie — navy
+                { bg: '#002233', glow: '#00ffdd' },  // yawn — teal
+                { bg: '#551100', glow: '#ff5500' },  // stomp — red-orange
+            ];
+
+            const keyMap = {
+                s: { action: 'shout',  word: 'SHOUT',    theme: 1 },
+                w: { action: 'wiggle', word: 'WIGGLE',   theme: 2 },
+                k: { action: 'kick',   word: 'KICK',     theme: 3 },
+                c: { action: 'clap',   word: 'CLAP',     theme: 4 },
+                j: { action: 'jump',   word: 'JUMP',     theme: 5 },
+                l: { action: 'lie',    word: 'LIE DOWN', theme: 6 },
+                y: { action: 'yawn',   word: 'YAWN',     theme: 7 },
+                t: { action: 'stomp',  word: 'STOMP',    theme: 8 },
+            };
+
+            const keyOrder = ['s','w','k','c','j','l','y','t'];
+            const heldKeys = new Set();
+            let currentAction = 'idle';
+            let animStart = 0;
+            let stickRafId = null;
+            let isStickActive = false;
+
+            function applyTheme(idx) {
+                const th = neonThemes[idx];
+                const stage = document.getElementById('neon-stage');
+                stage.style.backgroundColor = th.bg;
+                stage.style.setProperty('--neon-glow', th.glow);
+            }
+
+            function setAction(action, word, themeIdx) {
+                currentAction = action;
+                animStart = performance.now();
+                document.getElementById('neon-word').textContent = word;
+                applyTheme(themeIdx);
+            }
+
+            function updateFromKeys() {
+                for (const k of keyOrder) {
+                    if (heldKeys.has(k)) {
+                        const { action, word, theme } = keyMap[k];
+                        if (action !== currentAction) setAction(action, word, theme);
+                        return;
+                    }
+                }
+                if (currentAction !== 'idle') setAction('idle', 'HOLD A KEY', 0);
+            }
+
+            // ---- Pose calculation (t = 0..1 loop) ----
+            function getPose(action, t) {
+                const s = Math.sin;
+                const def = {
+                    offY: 0, tilt: 0,
+                    la: P*2/3, ra: P/3,
+                    ll: P*3/4, rl: P/4,
+                    mouth: 0, shX: 0,
+                };
+
+                switch (action) {
+                    case 'idle':
+                        return { ...def, offY: s(t * P * 2) * 3 };
+
+                    case 'shout':
+                        return { ...def,
+                            offY: -6 + s(t * P * 8) * 2,
+                            la: -P*2/3,
+                            ra: -P/3,
+                            mouth: 0.74 + s(t * P * 8) * 0.16,
+                            shX: s(t * P * 24) * 5,
+                        };
+
+                    case 'wiggle':
+                        return { ...def,
+                            tilt: s(t * P * 4) * 0.38,
+                            shX: s(t * P * 4) * 28,
+                            la: P*2/3 + s(t * P * 4 + P) * 0.6,
+                            ra: P/3   + s(t * P * 4) * 0.6,
+                        };
+
+                    case 'kick': {
+                        let kp = t < 0.35 ? t/0.35 : t < 0.55 ? 1 : 1-(t-0.55)/0.45;
+                        kp = Math.pow(kp, 0.6);
+                        return { ...def,
+                            tilt: -kp * 0.13,
+                            la: P*2/3 + kp * 0.5,
+                            ra: P/3   - kp * 0.8,
+                            rl: P/4   - kp * (P/4 + P*2/5),
+                        };
+                    }
+
+                    case 'clap': {
+                        const cp = (s(t * P * 6) + 1) / 2;  // 0..1, 3 claps
+                        return { ...def,
+                            la: P*5/6 - cp * (P*5/6 + P/2),
+                            ra: P/6   - cp * (P/6   + P/2),
+                            offY: s(t * P * 6) * 6,
+                        };
+                    }
+
+                    case 'jump': {
+                        const jp = Math.abs(s(t * P));
+                        return { ...def,
+                            offY: -jp * 72,
+                            la: P*2/3 - jp * P*0.55,
+                            ra: P/3   - jp * P*0.55,
+                            ll: P*3/4 + jp * P*0.22,
+                            rl: P/4   - jp * P*0.22,
+                        };
+                    }
+
+                    case 'lie': {
+                        const lp = Math.min(t * 2.2, 1);
+                        const ease = 1 - Math.pow(1-lp, 3);
+                        return { ...def,
+                            tilt: ease * P/2,
+                            offY: ease * 55,
+                        };
+                    }
+
+                    case 'yawn': {
+                        const yp = s(t * P);
+                        return { ...def,
+                            tilt: yp * 0.1,
+                            la: P*2/3 - yp * P*0.75,
+                            ra: P/3   - yp * P*0.75,
+                            mouth: yp * 0.9,
+                            offY: -yp * 6,
+                        };
+                    }
+
+                    case 'stomp': {
+                        const cycle = (t * 3) % 1;
+                        const isLeft = cycle < 0.5;
+                        const phase = isLeft ? cycle * 2 : (cycle - 0.5) * 2;
+                        const bounce = Math.pow(s(phase * P), 2);
+                        return { ...def,
+                            offY: -bounce * 18,
+                            tilt: (isLeft ? -1 : 1) * 0.12,
+                            la: P*2/3 + (isLeft ?  0.45 : -0.35) * bounce,
+                            ra: P/3   + (isLeft ? -0.35 :  0.45) * bounce,
+                            ll: P*3/4 + (isLeft ? -P/7  :  P/10) * bounce,
+                            rl: P/4   + (isLeft ?  P/10 : -P/7 ) * bounce,
+                        };
+                    }
+                }
+                return def;
+            }
+
+            // ---- Drawing ----
+            function drawFigure(t) {
+                const canvas = document.getElementById('stick-canvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width, h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                const pose = getPose(currentAction, t);
+
+                const cx = w / 2;
+                const baseY = h * 0.60;   // hip position
+                const headR = 22;
+                const bodyLen = 60;
+                const armLen = 38;
+                const legLen = 50;
+                const armOriginY = -bodyLen + bodyLen * 0.32;  // ~30% down body
+
+                ctx.save();
+                ctx.translate(cx + pose.shX, baseY + pose.offY);
+                ctx.rotate(pose.tilt);
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Head — no eyes (xkcd style)
+                const headCY = -bodyLen - headR;
+                ctx.beginPath();
+                ctx.arc(0, headCY, headR, 0, P * 2);
+                ctx.stroke();
+
+                // Mouth (open during shout/yawn)
+                if (pose.mouth > 0) {
+                    const mr = headR * 0.44 * pose.mouth;
+                    ctx.beginPath();
+                    ctx.arc(0, headCY + headR * 0.38, mr, 0, P);
+                    ctx.stroke();
+                }
+
+                // Body
+                ctx.beginPath();
+                ctx.moveTo(0, -bodyLen);
+                ctx.lineTo(0, 0);
+                ctx.stroke();
+
+                // Arms
+                const aY = armOriginY;
+                ctx.beginPath();
+                ctx.moveTo(0, aY);
+                ctx.lineTo(Math.cos(pose.la) * armLen, aY + Math.sin(pose.la) * armLen);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, aY);
+                ctx.lineTo(Math.cos(pose.ra) * armLen, aY + Math.sin(pose.ra) * armLen);
+                ctx.stroke();
+
+                // Legs
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(pose.ll) * legLen, Math.sin(pose.ll) * legLen);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(pose.rl) * legLen, Math.sin(pose.rl) * legLen);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // ---- Animation loop ----
+            const LOOP_MS = 2000;
+
+            function stickLoop(now) {
+                if (!isStickActive) return;
+                drawFigure(((now - animStart) % LOOP_MS) / LOOP_MS);
+                stickRafId = requestAnimationFrame(stickLoop);
+            }
+
+            function startStick() {
+                if (isStickActive) return;
+                isStickActive = true;
+                animStart = performance.now();
+                stickRafId = requestAnimationFrame(stickLoop);
+            }
+
+            function stopStick() {
+                isStickActive = false;
+                if (stickRafId) { cancelAnimationFrame(stickRafId); stickRafId = null; }
+            }
+
+            // ---- Key handling ----
+            document.addEventListener('keydown', (e) => {
+                if (!isStickActive) return;
+                const k = e.key.toLowerCase();
+                if (!keyMap[k]) return;
+                e.preventDefault();
+                if (!heldKeys.has(k)) { heldKeys.add(k); updateFromKeys(); }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                const k = e.key.toLowerCase();
+                if (!heldKeys.has(k)) return;
+                heldKeys.delete(k);
+                if (isStickActive) updateFromKeys();
+            });
+
+            // ---- Tab wiring (runs after init() sets up its own listeners) ----
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (btn.dataset.tab === 'stick-figure-tab') startStick();
+                        else stopStick();
+                    });
+                });
+                drawFigure(0);  // draw idle pose immediately
+            });
+        })();
     </script>
 </body>
 </html>
