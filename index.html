@@ -393,62 +393,51 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #5500aa;
+            background-color: #000080;
             position: relative;
             overflow: hidden;
-            transition: background-color 0.3s;
-            --neon-glow: #ff00ff;
+            transition: none;
+            --neon-glow: #00ffff;
         }
 
+        /* GeoCities star-field tile */
         .neon-stage::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 3px,
-                rgba(0,0,0,0.09) 3px,
-                rgba(0,0,0,0.09) 4px
-            );
+            background-image: radial-gradient(circle, rgba(255,255,255,0.22) 1px, transparent 1px);
+            background-size: 22px 22px;
             pointer-events: none;
             z-index: 0;
         }
 
         .neon-word-display {
-            font-family: 'Impact', 'Arial Black', sans-serif;
-            font-size: clamp(50px, 10vw, 120px);
-            font-style: italic;
+            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+            font-size: clamp(52px, 11vw, 125px);
+            font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 6px;
-            color: #fff;
-            text-shadow:
-                0 0 7px #fff,
-                0 0 15px #fff,
-                0 0 35px var(--neon-glow),
-                0 0 70px var(--neon-glow),
-                0 0 100px var(--neon-glow);
+            letter-spacing: 2px;
+            color: #ffff00;
+            -webkit-text-stroke: 3px var(--neon-glow);
+            paint-order: stroke fill;
+            text-shadow: 5px 5px 0 #000;
             margin-bottom: 10px;
-            animation: neon-flicker 2.5s ease-in-out infinite alternate;
+            animation: lo-fi-blink 1.3s linear infinite;
             user-select: none;
             pointer-events: none;
             position: relative;
             z-index: 1;
         }
 
-        @keyframes neon-flicker {
-            0%, 89%, 100% { opacity: 1; }
-            91% { opacity: 0.72; }
-            93% { opacity: 1; }
-            95% { opacity: 0.58; }
-            97% { opacity: 1; }
+        @keyframes lo-fi-blink {
+            0%, 78%, 100% { opacity: 1; }
+            79%, 99%      { opacity: 0; }
         }
 
         #stick-canvas {
             display: block;
             position: relative;
             z-index: 1;
-            filter: drop-shadow(0 0 8px rgba(255,255,255,0.85)) drop-shadow(0 0 22px var(--neon-glow));
         }
 
         .key-legend {
@@ -460,9 +449,10 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 6px 14px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7em;
-            color: rgba(255,255,255,0.65);
+            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+            font-size: 0.75em;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
             padding: 0 20px;
             z-index: 1;
         }
@@ -470,9 +460,9 @@
         .key-legend span { white-space: nowrap; }
 
         .key-legend kbd {
-            background: rgba(0,0,0,0.45);
-            border: 1px solid rgba(255,255,255,0.55);
-            border-radius: 3px;
+            background: rgba(0,0,0,0.55);
+            border: 2px solid rgba(255,255,255,0.7);
+            border-radius: 0;
             padding: 1px 6px;
             font-family: 'Courier New', monospace;
             color: #fff;
@@ -1727,15 +1717,15 @@
             const P = Math.PI;
 
             const neonThemes = [
-                { bg: '#330077', glow: '#cc00ff' },  // idle — purple
-                { bg: '#aa0033', glow: '#ff3388' },  // shout — red-pink
-                { bg: '#004499', glow: '#00bbff' },  // wiggle — blue
-                { bg: '#883300', glow: '#ff9900' },  // kick — orange
-                { bg: '#005522', glow: '#00ff66' },  // clap — green
-                { bg: '#550088', glow: '#cc44ff' },  // jump — violet
-                { bg: '#001255', glow: '#3366ff' },  // lie — navy
-                { bg: '#002233', glow: '#00ffdd' },  // yawn — teal
-                { bg: '#551100', glow: '#ff5500' },  // stomp — red-orange
+                { bg: '#000080', glow: '#00ffff' },  // idle:  GeoCities navy + cyan
+                { bg: '#cc0044', glow: '#ffff00' },  // shout: crimson + yellow
+                { bg: '#007700', glow: '#ff00ff' },  // wiggle: green + magenta
+                { bg: '#cc5500', glow: '#0000ff' },  // kick:  orange + blue
+                { bg: '#660099', glow: '#00ff00' },  // clap:  purple + lime
+                { bg: '#bb0000', glow: '#00ffff' },  // jump:  red + cyan
+                { bg: '#006688', glow: '#ffff00' },  // lie:   teal + yellow
+                { bg: '#bb8800', glow: '#ff00ff' },  // yawn:  gold + magenta
+                { bg: '#003399', glow: '#ff6600' },  // stomp: navy + orange
             ];
 
             const keyMap = {
@@ -1864,18 +1854,41 @@
                     }
 
                     case 'stomp': {
-                        const cycle = (t * 3) % 1;
+                        // 2 stomps per 2-second loop — big visible lift then slam
+                        const cycle = (t * 2) % 1;
                         const isLeft = cycle < 0.5;
                         const phase = isLeft ? cycle * 2 : (cycle - 0.5) * 2;
-                        const bounce = Math.pow(s(phase * P), 2);
-                        return { ...def,
-                            offY: -bounce * 18,
-                            tilt: (isLeft ? -1 : 1) * 0.12,
-                            la: P*2/3 + (isLeft ?  0.45 : -0.35) * bounce,
-                            ra: P/3   + (isLeft ? -0.35 :  0.45) * bounce,
-                            ll: P*3/4 + (isLeft ? -P/7  :  P/10) * bounce,
-                            rl: P/4   + (isLeft ?  P/10 : -P/7 ) * bounce,
-                        };
+
+                        // Lift 0→0.4 rise, 0.4→0.5 hang, 0.5→0.65 slam down fast
+                        let lift = phase < 0.4 ? phase / 0.4
+                                 : phase < 0.5 ? 1
+                                 : Math.max(0, 1 - (phase - 0.5) / 0.15);
+                        lift = Math.pow(lift, 0.7);
+
+                        // After slam: body bounces up briefly
+                        const ai = phase > 0.5 ? (phase - 0.5) / 0.5 : 0;
+                        const bodyBounce = phase > 0.5 && ai < 1
+                            ? -Math.sin(ai * P) * 18 * (1 - ai * 0.6) : 0;
+
+                        if (isLeft) {
+                            return { ...def,
+                                offY: bodyBounce,
+                                tilt: -lift * 0.13,
+                                la: P*2/3 - lift * 0.55,      // left arm sweeps back
+                                ra: P/3   + lift * 0.7,       // right arm forward (balance)
+                                ll: P*3/4 * (1 - lift),       // left leg sweeps 135°→0° (horizontal!)
+                                rl: P/2,                       // right leg planted straight down
+                            };
+                        } else {
+                            return { ...def,
+                                offY: bodyBounce,
+                                tilt:  lift * 0.13,
+                                la: P*2/3 + lift * 0.7,       // left arm forward
+                                ra: P/3   - lift * 0.55,      // right arm sweeps back
+                                ll: P/2,                       // left leg planted straight down
+                                rl: P/4 + lift * (P - P/4),   // right leg sweeps 45°→180° (horizontal!)
+                            };
+                        }
                     }
                 }
                 return def;
