@@ -774,7 +774,7 @@
     <div id="stick-figure-tab" class="tab-content">
         <div class="neon-stage" id="neon-stage">
             <div class="crt-scan-line"></div>
-            <div class="neon-word-display" id="neon-word">COME ON!</div>
+            <div class="neon-word-display" id="neon-word">PRESS A KEY</div>
             <canvas id="stick-canvas" width="300" height="340"></canvas>
             <div class="key-legend">
                 <span><kbd>S</kbd>SHOUT</span>
@@ -786,6 +786,8 @@
                 <span><kbd>Y</kbd>YAWN</span>
                 <span><kbd>T</kbd>STOMP</span>
                 <span><kbd>R</kbd>SPIN</span>
+                <span><kbd>D</kbd>DANCE</span>
+                <span><kbd>O</kbd>COME ON</span>
             </div>
         </div>
     </div>
@@ -1763,16 +1765,18 @@
 
             // C64 color palette themes per action
             const themes = [
-                { bg: '#0000AA', word: '#FFFFFF' },  // idle:  C64 blue
-                { bg: '#110000', word: '#FFAA66' },  // shout: dark red + orange
-                { bg: '#003300', word: '#AAFF66' },  // wiggle: dark green + lime
-                { bg: '#332200', word: '#EEEE77' },  // kick:  dark orange + yellow
-                { bg: '#220033', word: '#FF88FF' },  // clap:  dark purple + pink
-                { bg: '#002200', word: '#55FF55' },  // jump:  dark green + bright (CGA)
-                { bg: '#000044', word: '#AAFFEE' },  // lie:   dark navy + cyan
-                { bg: '#221100', word: '#FFEE88' },  // yawn:  dark brown + yellow
-                { bg: '#220000', word: '#FF6666' },  // stomp: dark red + red
-                { bg: '#000000', word: '#FFFFFF' },  // spin:  black + white (bg cycles)
+                { bg: '#0000AA', word: '#FFFFFF' },  // 0:  idle
+                { bg: '#110000', word: '#FFAA66' },  // 1:  shout
+                { bg: '#003300', word: '#AAFF66' },  // 2:  wiggle
+                { bg: '#332200', word: '#EEEE77' },  // 3:  kick
+                { bg: '#220033', word: '#FF88FF' },  // 4:  clap
+                { bg: '#002200', word: '#55FF55' },  // 5:  jump
+                { bg: '#000044', word: '#AAFFEE' },  // 6:  lie
+                { bg: '#221100', word: '#FFEE88' },  // 7:  yawn
+                { bg: '#220000', word: '#FF6666' },  // 8:  stomp
+                { bg: '#000000', word: '#FFFFFF' },  // 9:  spin
+                { bg: '#003322', word: '#00FFAA' },  // 10: dance
+                { bg: '#332200', word: '#FFBB44' },  // 11: come on
             ];
 
             // C64 demo-style colors for spin cycling
@@ -1788,9 +1792,11 @@
                 y: { action: 'yawn',   word: 'YAWN...',   theme: 7 },
                 t: { action: 'stomp',  word: 'STOMP',     theme: 8 },
                 r: { action: 'spin',   word: 'SPIN',      theme: 9 },
+                d: { action: 'dance',  word: 'DANCE!',    theme: 10 },
+                o: { action: 'comeon', word: 'COME ON!',  theme: 11 },
             };
 
-            const keyOrder = ['s','w','k','c','j','l','y','t','r'];
+            const keyOrder = ['s','w','k','c','j','l','y','t','r','d','o'];
             const heldKeys = new Set();
             let currentAction = 'idle';
             let animStart = 0;
@@ -1820,6 +1826,7 @@
                 }
                 if (currentAction !== 'idle') {
                     currentAction = 'idle';
+                    document.getElementById('neon-word').textContent = 'PRESS A KEY';
                     applyTheme(0);
                 }
             }
@@ -1836,9 +1843,12 @@
                 };
 
                 switch (action) {
-                    case 'idle': {
-                        // Breakdancing: overlapping sines at different phases create
-                        // fluid, unpredictable-looking moves
+                    case 'idle':
+                        // Just standing: subtle breathing bob
+                        return { ...def, offY: s(t * P * 2) * 2 };
+
+                    case 'dance': {
+                        // Breakdancing: overlapping sines at different frequencies
                         const ph = t * P * 2;
                         return { ...def,
                             offY: s(ph*2)*10 - s(ph)*5,
@@ -1848,6 +1858,21 @@
                             ra: P/3   + s(ph*2 - P*0.6)*0.9  + s(ph*3)*0.2,
                             ll: P*3/4 + s(ph*2 - P*0.4)*0.28 + s(ph*4)*0.08,
                             rl: P/4   + s(ph*2 + P*0.4)*0.28 + s(ph*4)*0.08,
+                        };
+                    }
+
+                    case 'comeon': {
+                        // Rhythmic bounce-and-pump groove: 2 big bounces per loop,
+                        // arms swing opposite to each other
+                        const ph = t * P * 4;
+                        return { ...def,
+                            offY: -Math.abs(s(t * P * 2)) * 18,
+                            tilt: s(t * P * 2) * 0.14,
+                            shX:  s(t * P * 2) * 10,
+                            la: P*2/3 + s(ph + P*0.5) * 1.0,
+                            ra: P/3   + s(ph - P*0.5) * 1.0,
+                            ll: P*3/4 + s(ph * 0.5) * 0.2,
+                            rl: P/4   + s(ph * 0.5 + P) * 0.2,
                         };
                     }
 
@@ -2086,18 +2111,10 @@
 
             // ---- Animation loop ----
             const LOOP_MS = 2000;
-            const idleWords = ['COME ON!', 'DANCE!'];
 
             function stickLoop(now) {
                 if (!isStickActive) return;
                 const t = ((now - animStart) % LOOP_MS) / LOOP_MS;
-
-                // Idle: alternate between "COME ON!" and "DANCE!" every 1.2s
-                if (currentAction === 'idle') {
-                    const wordEl = document.getElementById('neon-word');
-                    const w = idleWords[Math.floor(now / 1200) % 2];
-                    if (wordEl.textContent !== w) wordEl.textContent = w;
-                }
 
                 // Spin: cycle C64 palette on background
                 if (currentAction === 'spin') {
