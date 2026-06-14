@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuclear Power Plant Simulator</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -379,7 +381,7 @@
                 grid-column: span 1;
             }
         }
-        /* ==================== NEON STICK FIGURE TAB ==================== */
+        /* ==================== C64 / ATARI CRT TAB ==================== */
         #stick-figure-tab.active {
             display: flex;
             flex-direction: column;
@@ -393,80 +395,121 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #000080;
+            background-color: #0000AA;
             position: relative;
             overflow: hidden;
             transition: none;
-            --neon-glow: #00ffff;
+            box-shadow: inset 0 0 120px rgba(0,0,0,0.55);
         }
 
-        /* GeoCities star-field tile */
+        /* CRT scanlines */
         .neon-stage::before {
             content: '';
             position: absolute;
             inset: 0;
-            background-image: radial-gradient(circle, rgba(255,255,255,0.22) 1px, transparent 1px);
-            background-size: 22px 22px;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.3) 2px,
+                rgba(0,0,0,0.3) 4px
+            );
             pointer-events: none;
-            z-index: 0;
+            z-index: 5;
+        }
+
+        /* CRT vignette — dark edges */
+        .neon-stage::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 50%, transparent 48%, rgba(0,0,0,0.68) 100%);
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        /* Moving scan-line artifact */
+        .crt-scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(transparent, rgba(255,255,255,0.05), transparent);
+            animation: crt-scan-move 7s linear infinite;
+            pointer-events: none;
+            z-index: 7;
+        }
+
+        @keyframes crt-scan-move {
+            from { top: -4px; }
+            to   { top: 100%; }
         }
 
         .neon-word-display {
-            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
-            font-size: clamp(52px, 11vw, 125px);
-            font-weight: bold;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            font-size: clamp(22px, 4vw, 52px);
+            color: #FFFFFF;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #ffff00;
-            -webkit-text-stroke: 3px var(--neon-glow);
-            paint-order: stroke fill;
-            text-shadow: 5px 5px 0 #000;
-            margin-bottom: 10px;
-            animation: lo-fi-blink 1.3s linear infinite;
+            text-align: center;
+            max-width: 90vw;
+            /* chromatic aberration — red left, cyan right */
+            text-shadow:
+                2px  0   rgba(255,0,0,0.55),
+                -2px 0   rgba(0,210,255,0.55),
+                0    3px rgba(0,0,0,0.9);
+            margin-bottom: 12px;
+            animation: crt-glitch 5s linear infinite;
             user-select: none;
             pointer-events: none;
             position: relative;
-            z-index: 1;
+            z-index: 8;
         }
 
-        @keyframes lo-fi-blink {
-            0%, 78%, 100% { opacity: 1; }
-            79%, 99%      { opacity: 0; }
+        @keyframes crt-glitch {
+            0%, 90%, 100% {
+                text-shadow: 2px 0 rgba(255,0,0,0.55), -2px 0 rgba(0,210,255,0.55), 0 3px rgba(0,0,0,0.9);
+                transform: translateX(0);
+            }
+            91% { text-shadow: 6px 0 rgba(255,0,0,0.9), -6px 0 rgba(0,210,255,0.9), 0 3px rgba(0,0,0,0.9); transform: translateX(5px); }
+            92% { text-shadow: -4px 0 rgba(255,0,0,0.9),  4px 0 rgba(0,210,255,0.9), 0 3px rgba(0,0,0,0.9); transform: translateX(-3px); }
+            93% { text-shadow: 2px 0 rgba(255,0,0,0.55), -2px 0 rgba(0,210,255,0.55), 0 3px rgba(0,0,0,0.9); transform: translateX(0); }
         }
 
         #stick-canvas {
             display: block;
             position: relative;
-            z-index: 1;
+            z-index: 8;
         }
 
         .key-legend {
             position: absolute;
-            bottom: 18px;
+            bottom: 14px;
             left: 0;
             right: 0;
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 6px 14px;
-            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
-            font-size: 0.75em;
-            color: #fff;
-            text-shadow: 2px 2px 0 #000;
+            gap: 5px 12px;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            font-size: 9px;
+            color: rgba(255,255,255,0.7);
+            text-shadow: 1px 1px 0 #000;
             padding: 0 20px;
-            z-index: 1;
+            z-index: 8;
         }
 
         .key-legend span { white-space: nowrap; }
 
         .key-legend kbd {
-            background: rgba(0,0,0,0.55);
-            border: 2px solid rgba(255,255,255,0.7);
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.6);
             border-radius: 0;
-            padding: 1px 6px;
-            font-family: 'Courier New', monospace;
+            padding: 1px 5px;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
             color: #fff;
             margin-right: 4px;
+            font-size: 9px;
         }
     </style>
 </head>
@@ -730,7 +773,8 @@
     <!-- Neon Stick Figure Tab -->
     <div id="stick-figure-tab" class="tab-content">
         <div class="neon-stage" id="neon-stage">
-            <div class="neon-word-display" id="neon-word">HOLD A KEY</div>
+            <div class="crt-scan-line"></div>
+            <div class="neon-word-display" id="neon-word">COME ON!</div>
             <canvas id="stick-canvas" width="300" height="340"></canvas>
             <div class="key-legend">
                 <span><kbd>S</kbd>SHOUT</span>
@@ -741,6 +785,7 @@
                 <span><kbd>L</kbd>LIE DOWN</span>
                 <span><kbd>Y</kbd>YAWN</span>
                 <span><kbd>T</kbd>STOMP</span>
+                <span><kbd>R</kbd>SPIN</span>
             </div>
         </div>
     </div>
@@ -1712,34 +1757,40 @@
         // Start when DOM is ready
         document.addEventListener('DOMContentLoaded', init);
 
-        // ==================== NEON STICK FIGURE TAB ====================
+        // ==================== C64/ATARI STICK FIGURE TAB ====================
         (function () {
             const P = Math.PI;
 
-            const neonThemes = [
-                { bg: '#000080', glow: '#00ffff' },  // idle:  GeoCities navy + cyan
-                { bg: '#cc0044', glow: '#ffff00' },  // shout: crimson + yellow
-                { bg: '#007700', glow: '#ff00ff' },  // wiggle: green + magenta
-                { bg: '#cc5500', glow: '#0000ff' },  // kick:  orange + blue
-                { bg: '#660099', glow: '#00ff00' },  // clap:  purple + lime
-                { bg: '#bb0000', glow: '#00ffff' },  // jump:  red + cyan
-                { bg: '#006688', glow: '#ffff00' },  // lie:   teal + yellow
-                { bg: '#bb8800', glow: '#ff00ff' },  // yawn:  gold + magenta
-                { bg: '#003399', glow: '#ff6600' },  // stomp: navy + orange
+            // C64 color palette themes per action
+            const themes = [
+                { bg: '#0000AA', word: '#FFFFFF' },  // idle:  C64 blue
+                { bg: '#110000', word: '#FFAA66' },  // shout: dark red + orange
+                { bg: '#003300', word: '#AAFF66' },  // wiggle: dark green + lime
+                { bg: '#332200', word: '#EEEE77' },  // kick:  dark orange + yellow
+                { bg: '#220033', word: '#FF88FF' },  // clap:  dark purple + pink
+                { bg: '#002200', word: '#55FF55' },  // jump:  dark green + bright (CGA)
+                { bg: '#000044', word: '#AAFFEE' },  // lie:   dark navy + cyan
+                { bg: '#221100', word: '#FFEE88' },  // yawn:  dark brown + yellow
+                { bg: '#220000', word: '#FF6666' },  // stomp: dark red + red
+                { bg: '#000000', word: '#FFFFFF' },  // spin:  black + white (bg cycles)
             ];
 
+            // C64 demo-style colors for spin cycling
+            const spinPalette = ['#0000AA','#880000','#006600','#440044','#004444','#663300'];
+
             const keyMap = {
-                s: { action: 'shout',  word: 'SHOUT',    theme: 1 },
-                w: { action: 'wiggle', word: 'WIGGLE',   theme: 2 },
-                k: { action: 'kick',   word: 'KICK',     theme: 3 },
-                c: { action: 'clap',   word: 'CLAP',     theme: 4 },
-                j: { action: 'jump',   word: 'JUMP',     theme: 5 },
-                l: { action: 'lie',    word: 'LIE DOWN', theme: 6 },
-                y: { action: 'yawn',   word: 'YAWN',     theme: 7 },
-                t: { action: 'stomp',  word: 'STOMP',    theme: 8 },
+                s: { action: 'shout',  word: 'SHOUT!',   theme: 1 },
+                w: { action: 'wiggle', word: 'WIGGLE',    theme: 2 },
+                k: { action: 'kick',   word: 'KICK',      theme: 3 },
+                c: { action: 'clap',   word: 'CLAP',      theme: 4 },
+                j: { action: 'jump',   word: 'JUMP',      theme: 5 },
+                l: { action: 'lie',    word: 'LIE DOWN',  theme: 6 },
+                y: { action: 'yawn',   word: 'YAWN...',   theme: 7 },
+                t: { action: 'stomp',  word: 'STOMP',     theme: 8 },
+                r: { action: 'spin',   word: 'SPIN',      theme: 9 },
             };
 
-            const keyOrder = ['s','w','k','c','j','l','y','t'];
+            const keyOrder = ['s','w','k','c','j','l','y','t','r'];
             const heldKeys = new Set();
             let currentAction = 'idle';
             let animStart = 0;
@@ -1747,10 +1798,9 @@
             let isStickActive = false;
 
             function applyTheme(idx) {
-                const th = neonThemes[idx];
-                const stage = document.getElementById('neon-stage');
-                stage.style.backgroundColor = th.bg;
-                stage.style.setProperty('--neon-glow', th.glow);
+                const th = themes[idx];
+                document.getElementById('neon-stage').style.backgroundColor = th.bg;
+                document.getElementById('neon-word').style.color = th.word;
             }
 
             function setAction(action, word, themeIdx) {
@@ -1768,36 +1818,53 @@
                         return;
                     }
                 }
-                if (currentAction !== 'idle') setAction('idle', 'HOLD A KEY', 0);
+                if (currentAction !== 'idle') {
+                    currentAction = 'idle';
+                    applyTheme(0);
+                }
             }
 
             // ---- Pose calculation (t = 0..1 loop) ----
             function getPose(action, t) {
-                const s = Math.sin;
+                const s = Math.sin, c = Math.cos;
                 const def = {
-                    offY: 0, tilt: 0,
+                    offY: 0, tilt: 0, shX: 0,
                     la: P*2/3, ra: P/3,
                     ll: P*3/4, rl: P/4,
-                    mouth: 0, shX: 0,
+                    mouth: 0, circleMouth: false,
+                    megaphone: false, stompKnees: false,
                 };
 
                 switch (action) {
-                    case 'idle':
-                        return { ...def, offY: s(t * P * 2) * 3 };
+                    case 'idle': {
+                        // Breakdancing: overlapping sines at different phases create
+                        // fluid, unpredictable-looking moves
+                        const ph = t * P * 2;
+                        return { ...def,
+                            offY: s(ph*2)*10 - s(ph)*5,
+                            tilt: s(ph*1.5)*0.24 + s(ph*3)*0.06,
+                            shX:  c(ph*1.5)*14  + c(ph*2.7)*4,
+                            la: P*2/3 + s(ph*2 + P*0.6)*0.9  + s(ph*3)*0.2,
+                            ra: P/3   + s(ph*2 - P*0.6)*0.9  + s(ph*3)*0.2,
+                            ll: P*3/4 + s(ph*2 - P*0.4)*0.28 + s(ph*4)*0.08,
+                            rl: P/4   + s(ph*2 + P*0.4)*0.28 + s(ph*4)*0.08,
+                        };
+                    }
 
                     case 'shout':
+                        // Right arm holds megaphone, figure vibrates
                         return { ...def,
-                            offY: -6 + s(t * P * 8) * 2,
-                            la: -P*2/3,
-                            ra: -P/3,
-                            mouth: 0.74 + s(t * P * 8) * 0.16,
-                            shX: s(t * P * 24) * 5,
+                            offY: -5, tilt: 0.07,
+                            la: P*3/4,        // left arm back/up for balance
+                            ra: -P/12,        // right arm points slight-up-right: holds megaphone
+                            megaphone: true,
+                            shX: s(t * P * 22) * 4,
                         };
 
                     case 'wiggle':
                         return { ...def,
                             tilt: s(t * P * 4) * 0.38,
-                            shX: s(t * P * 4) * 28,
+                            shX:  s(t * P * 4) * 28,
                             la: P*2/3 + s(t * P * 4 + P) * 0.6,
                             ra: P/3   + s(t * P * 4) * 0.6,
                         };
@@ -1814,7 +1881,7 @@
                     }
 
                     case 'clap': {
-                        const cp = (s(t * P * 6) + 1) / 2;  // 0..1, 3 claps
+                        const cp = (s(t * P * 6) + 1) / 2;
                         return { ...def,
                             la: P*5/6 - cp * (P*5/6 + P/2),
                             ra: P/6   - cp * (P/6   + P/2),
@@ -1834,83 +1901,120 @@
                     }
 
                     case 'lie': {
-                        const lp = Math.min(t * 2.2, 1);
-                        const ease = 1 - Math.pow(1-lp, 3);
-                        return { ...def,
-                            tilt: ease * P/2,
-                            offY: ease * 55,
-                        };
+                        const ease = 1 - Math.pow(1 - Math.min(t * 2.2, 1), 3);
+                        return { ...def, tilt: ease * P/2, offY: ease * 55 };
                     }
 
                     case 'yawn': {
-                        const yp = s(t * P);
+                        const yp = s(t * P);  // 0→1→0
                         return { ...def,
-                            tilt: yp * 0.1,
-                            la: P*2/3 - yp * P*0.75,
-                            ra: P/3   - yp * P*0.75,
-                            mouth: yp * 0.9,
-                            offY: -yp * 6,
+                            tilt: yp * 0.15,
+                            la: P*2/3 - yp * P * 0.92,   // arms stretch all the way up
+                            ra: P/3   - yp * P * 0.92,
+                            mouth: yp, circleMouth: true,  // growing circle O mouth
+                            offY: -yp * 8,
                         };
                     }
 
                     case 'stomp': {
-                        // 2 stomps per 2-second loop — big visible lift then slam
+                        // 2 stomps per loop, genuine knee-bend: raise knee HIGH then slam
                         const cycle = (t * 2) % 1;
                         const isLeft = cycle < 0.5;
                         const phase = isLeft ? cycle * 2 : (cycle - 0.5) * 2;
 
-                        // Lift 0→0.4 rise, 0.4→0.5 hang, 0.5→0.65 slam down fast
-                        let lift = phase < 0.4 ? phase / 0.4
-                                 : phase < 0.5 ? 1
-                                 : Math.max(0, 1 - (phase - 0.5) / 0.15);
+                        let lift = phase < 0.4 ? phase/0.4 : phase < 0.5 ? 1
+                                 : Math.max(0, 1 - (phase-0.5)/0.15);
                         lift = Math.pow(lift, 0.7);
 
-                        // After slam: body bounces up briefly
-                        const ai = phase > 0.5 ? (phase - 0.5) / 0.5 : 0;
+                        const ai = phase > 0.5 ? (phase-0.5)/0.5 : 0;
                         const bodyBounce = phase > 0.5 && ai < 1
-                            ? -Math.sin(ai * P) * 18 * (1 - ai * 0.6) : 0;
+                            ? -s(ai * P) * 20 * (1 - ai*0.55) : 0;
 
                         if (isLeft) {
                             return { ...def,
-                                offY: bodyBounce,
-                                tilt: -lift * 0.13,
-                                la: P*2/3 - lift * 0.55,      // left arm sweeps back
-                                ra: P/3   + lift * 0.7,       // right arm forward (balance)
-                                ll: P*3/4 * (1 - lift),       // left leg sweeps 135°→0° (horizontal!)
-                                rl: P/2,                       // right leg planted straight down
+                                offY: bodyBounce, tilt: -lift * 0.14,
+                                la: P*2/3 - lift * 0.6,
+                                ra: P/3   + lift * 0.75,
+                                stompKnees: true,
+                                // Left knee shoots up high above hip; shin hangs below it
+                                lKneeX: -10 + lift*5,   lKneeY: 26 - lift*58,
+                                lFootX: -20 + lift*15,  lFootY: 50 - lift*55,
+                                // Right leg: planted, slight natural bend
+                                rKneeX: 12,  rKneeY: 26,
+                                rFootX: 22,  rFootY: 50,
                             };
                         } else {
                             return { ...def,
-                                offY: bodyBounce,
-                                tilt:  lift * 0.13,
-                                la: P*2/3 + lift * 0.7,       // left arm forward
-                                ra: P/3   - lift * 0.55,      // right arm sweeps back
-                                ll: P/2,                       // left leg planted straight down
-                                rl: P/4 + lift * (P - P/4),   // right leg sweeps 45°→180° (horizontal!)
+                                offY: bodyBounce, tilt: lift * 0.14,
+                                la: P*2/3 + lift * 0.75,
+                                ra: P/3   - lift * 0.6,
+                                stompKnees: true,
+                                lKneeX: -12, lKneeY: 26,
+                                lFootX: -22, lFootY: 50,
+                                rKneeX: 10 - lift*5,  rKneeY: 26 - lift*58,
+                                rFootX: 20 - lift*15, rFootY: 50 - lift*55,
                             };
                         }
                     }
+
+                    case 'spin':
+                        return { ...def,
+                            tilt: t * P * 2,   // full 360° per 2s
+                            la: P,             // T-pose arms straight out
+                            ra: 0,
+                            ll: P*2/3 + 0.1,
+                            rl: P/3   - 0.1,
+                        };
                 }
                 return def;
             }
 
-            // ---- Drawing ----
+            // ---- Megaphone helper ----
+            function drawMegaphone(ctx, endX, endY, angle, t) {
+                ctx.save();
+                ctx.translate(endX + Math.cos(angle)*4, endY + Math.sin(angle)*4);
+                ctx.rotate(angle);
+
+                // Trapezoid body (narrow handle → wide bell)
+                ctx.beginPath();
+                ctx.moveTo(0,  -3);
+                ctx.lineTo(24, -12);
+                ctx.lineTo(24,  12);
+                ctx.lineTo(0,   3);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Grip bar
+                ctx.beginPath();
+                ctx.moveTo(6,  3);
+                ctx.lineTo(6, 12);
+                ctx.stroke();
+
+                // Expanding sound waves from bell
+                for (let i = 0; i < 3; i++) {
+                    const p = ((t * 1.6 + i / 3) % 1);
+                    const r = 10 + p * 28;
+                    ctx.globalAlpha = (1 - p) * 0.85;
+                    ctx.beginPath();
+                    ctx.arc(24, 0, r, -P * 0.42, P * 0.42);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            }
+
+            // ---- Main draw ----
             function drawFigure(t) {
                 const canvas = document.getElementById('stick-canvas');
                 if (!canvas) return;
                 const ctx = canvas.getContext('2d');
-                const w = canvas.width, h = canvas.height;
-                ctx.clearRect(0, 0, w, h);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 const pose = getPose(currentAction, t);
-
-                const cx = w / 2;
-                const baseY = h * 0.60;   // hip position
-                const headR = 22;
-                const bodyLen = 60;
-                const armLen = 38;
-                const legLen = 50;
-                const armOriginY = -bodyLen + bodyLen * 0.32;  // ~30% down body
+                const cx = canvas.width / 2;
+                const baseY = canvas.height * 0.60;
+                const headR = 22, bodyLen = 60, armLen = 38, legLen = 50;
+                const aY = -bodyLen + bodyLen * 0.32;  // shoulder y
 
                 ctx.save();
                 ctx.translate(cx + pose.shX, baseY + pose.offY);
@@ -1921,17 +2025,22 @@
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
-                // Head — no eyes (xkcd style)
+                // Head (no eyes)
                 const headCY = -bodyLen - headR;
                 ctx.beginPath();
                 ctx.arc(0, headCY, headR, 0, P * 2);
                 ctx.stroke();
 
-                // Mouth (open during shout/yawn)
-                if (pose.mouth > 0) {
-                    const mr = headR * 0.44 * pose.mouth;
+                // Mouth
+                if (pose.circleMouth && pose.mouth > 0) {
+                    // Growing circle O for yawn
                     ctx.beginPath();
-                    ctx.arc(0, headCY + headR * 0.38, mr, 0, P);
+                    ctx.arc(0, headCY + headR*0.4, headR*0.52*pose.mouth, 0, P*2);
+                    ctx.stroke();
+                } else if (!pose.megaphone && pose.mouth > 0) {
+                    // Half-arc for other actions
+                    ctx.beginPath();
+                    ctx.arc(0, headCY + headR*0.38, headR*0.42*pose.mouth, 0, P);
                     ctx.stroke();
                 }
 
@@ -1941,38 +2050,62 @@
                 ctx.lineTo(0, 0);
                 ctx.stroke();
 
-                // Arms
-                const aY = armOriginY;
-                ctx.beginPath();
-                ctx.moveTo(0, aY);
-                ctx.lineTo(Math.cos(pose.la) * armLen, aY + Math.sin(pose.la) * armLen);
-                ctx.stroke();
+                // Left arm
+                const laX = Math.cos(pose.la)*armLen, laY = aY + Math.sin(pose.la)*armLen;
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(laX, laY); ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(0, aY);
-                ctx.lineTo(Math.cos(pose.ra) * armLen, aY + Math.sin(pose.ra) * armLen);
-                ctx.stroke();
+                // Right arm
+                const raX = Math.cos(pose.ra)*armLen, raY = aY + Math.sin(pose.ra)*armLen;
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(raX, raY); ctx.stroke();
+
+                // Megaphone on right arm
+                if (pose.megaphone) drawMegaphone(ctx, raX, raY, pose.ra, t);
 
                 // Legs
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(Math.cos(pose.ll) * legLen, Math.sin(pose.ll) * legLen);
-                ctx.stroke();
+                if (pose.stompKnees) {
+                    // Two-segment knee-bend legs
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0); ctx.lineTo(pose.lKneeX, pose.lKneeY);
+                    ctx.lineTo(pose.lFootX, pose.lFootY); ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(Math.cos(pose.rl) * legLen, Math.sin(pose.rl) * legLen);
-                ctx.stroke();
-
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0); ctx.lineTo(pose.rKneeX, pose.rKneeY);
+                    ctx.lineTo(pose.rFootX, pose.rFootY); ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(pose.ll)*legLen, Math.sin(pose.ll)*legLen);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(pose.rl)*legLen, Math.sin(pose.rl)*legLen);
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
 
             // ---- Animation loop ----
             const LOOP_MS = 2000;
+            const idleWords = ['COME ON!', 'DANCE!'];
 
             function stickLoop(now) {
                 if (!isStickActive) return;
-                drawFigure(((now - animStart) % LOOP_MS) / LOOP_MS);
+                const t = ((now - animStart) % LOOP_MS) / LOOP_MS;
+
+                // Idle: alternate between "COME ON!" and "DANCE!" every 1.2s
+                if (currentAction === 'idle') {
+                    const wordEl = document.getElementById('neon-word');
+                    const w = idleWords[Math.floor(now / 1200) % 2];
+                    if (wordEl.textContent !== w) wordEl.textContent = w;
+                }
+
+                // Spin: cycle C64 palette on background
+                if (currentAction === 'spin') {
+                    const ci = Math.floor(t * spinPalette.length);
+                    document.getElementById('neon-stage').style.backgroundColor = spinPalette[ci];
+                }
+
+                drawFigure(t);
                 stickRafId = requestAnimationFrame(stickLoop);
             }
 
@@ -2004,7 +2137,7 @@
                 if (isStickActive) updateFromKeys();
             });
 
-            // ---- Tab wiring (runs after init() sets up its own listeners) ----
+            // ---- Tab wiring ----
             document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -2012,7 +2145,7 @@
                         else stopStick();
                     });
                 });
-                drawFigure(0);  // draw idle pose immediately
+                drawFigure(0);
             });
         })();
     </script>
