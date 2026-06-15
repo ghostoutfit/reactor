@@ -788,6 +788,7 @@
                 <span><kbd>R</kbd>SPIN</span>
                 <span><kbd>D</kbd>DANCE</span>
                 <span><kbd>O</kbd>COME ON</span>
+                <span><kbd>G</kbd>GHOST</span>
             </div>
         </div>
     </div>
@@ -1777,6 +1778,7 @@
                 { bg: '#6600CC', word: '#00FF88' },  // 9:  spin       — purple / neon green
                 { bg: '#0000FF', word: '#00FF00' },  // 10: dance      — blue / green
                 { bg: '#FF6600', word: '#FF00FF' },  // 11: come on    — orange / magenta
+                { bg: '#001133', word: '#00FFFF' },  // 12: ghost      — deep night / cyan
             ];
 
             // Vivid spin palette
@@ -1794,9 +1796,10 @@
                 r: { action: 'spin',   word: 'SPIN',      theme: 9 },
                 d: { action: 'dance',  word: 'DANCE!',    theme: 10 },
                 o: { action: 'comeon', word: 'COME ON!',  theme: 11 },
+                g: { action: 'ghost',  word: 'HEAR THE SOUND AROUND', theme: 12 },
             };
 
-            const keyOrder = ['s','w','k','c','j','l','y','t','r','d','o'];
+            const keyOrder = ['s','w','k','c','j','l','y','t','r','d','o','g'];
             const heldKeys = new Set();
             let currentAction = 'idle';
             let animStart = 0;
@@ -2099,13 +2102,16 @@
 
                     case 'lie': {
                         const ease = 1 - Math.pow(1 - Math.min(t * 2.2, 1), 3);
-                        // Arms converge to bottom edge of head (local ≈ −1.08 rad
-                        // puts hands at the visual underside of the circle when tilt=π/2)
+                        // Arms converge to bottom of head circle when lying.
+                        // Intersection of arm circle (r=38, center (0,-40.8)) and
+                        // head circle (r=22, center (0,-82)) is at (±20.1, -73.05).
+                        // Angle to (+x) intersection from shoulder: atan2(-32.25, 20.1) ≈ -1.0135
+                        // Both arms aim toward that point with slight spread.
                         return { ...def,
                             tilt: ease * P/2,
                             offY: ease * 55,
-                            la: P*2/3 + ease * (-P*2/3 - 1.22),
-                            ra: P/3   + ease * (-P/3   - 1.05),
+                            la: P*2/3 + ease * (-P*2/3 - 0.90),
+                            ra: P/3   + ease * (-P/3   - 1.0135),
                         };
                     }
 
@@ -2175,6 +2181,73 @@
                 return def;
             }
 
+            // ---- Ghost scene ----
+            function drawGhostScene(ctx, canvas, t) {
+                const cx = canvas.width / 2;
+                const baseY = canvas.height * 0.60;
+                const headR = 22, bodyLen = 60, armLen = 38, legLen = 50;
+                const headCY = -bodyLen - headR;
+                const aY = -bodyLen + bodyLen * 0.32;
+
+                // Dim slumped body at ground
+                ctx.save();
+                ctx.globalAlpha = 0.18;
+                ctx.translate(cx, baseY);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath(); ctx.arc(0, headCY, headR, 0, P*2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, -bodyLen); ctx.lineTo(0, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(-armLen*0.75, aY + armLen*0.65); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo( armLen*0.75, aY + armLen*0.65); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-legLen*0.35, legLen*0.93); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo( legLen*0.35, legLen*0.93); ctx.stroke();
+                ctx.restore();
+
+                // Floating ghost — lazy oval path
+                const angle = t * P * 2;
+                const ghostX = cx + Math.cos(angle) * 28;
+                const ghostY = baseY - 115 + Math.sin(angle * 0.7) * 12;
+                const bobY = Math.sin(t * P * 4) * 4;
+                const armWave = Math.sin(t * P * 2) * 0.15;
+
+                ctx.save();
+                ctx.translate(ghostX, ghostY + bobY);
+
+                // Glow
+                ctx.shadowColor = '#00FFFF';
+                ctx.shadowBlur = 22;
+                ctx.globalAlpha = 0.90;
+                ctx.strokeStyle = '#aaffff';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Head
+                ctx.beginPath(); ctx.arc(0, headCY, headR, 0, P*2); ctx.stroke();
+
+                // Body
+                ctx.beginPath(); ctx.moveTo(0, -bodyLen); ctx.lineTo(0, 0); ctx.stroke();
+
+                // Arms spread wide and gently floating
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(-armLen, aY - 8 + armWave*30); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo( armLen, aY - 8 - armWave*30); ctx.stroke();
+
+                // Wispy tail (3 wavy tendrils instead of legs)
+                for (let i = -1; i <= 1; i++) {
+                    const phase = t * P * 3 + i * 1.2;
+                    const wx = Math.sin(phase) * 9;
+                    ctx.globalAlpha = 0.90 - Math.abs(i) * 0.2;
+                    ctx.beginPath();
+                    ctx.moveTo(i * 10, 0);
+                    ctx.quadraticCurveTo(i * 10 + wx, legLen * 0.45, i * 7 + wx * 0.4, legLen * 0.80);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
             // ---- Megaphone helper ----
             function drawMegaphone(ctx, endX, endY, angle, t) {
                 ctx.save();
@@ -2215,6 +2288,8 @@
                 if (!canvas) return;
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (currentAction === 'ghost') { drawGhostScene(ctx, canvas, t); return; }
 
                 const pose = getPose(currentAction, t);
                 const cx = canvas.width / 2;
@@ -2296,7 +2371,7 @@
 
             function stickLoop(now) {
                 if (!isStickActive) return;
-                const loopMs = currentAction === 'dance' ? 20000 : LOOP_MS;
+                const loopMs = currentAction === 'dance' ? 20000 : currentAction === 'ghost' ? 6000 : LOOP_MS;
                 const t = ((now - animStart) % loopMs) / loopMs;
 
                 // Spin: cycle palette on background
