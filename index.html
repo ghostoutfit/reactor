@@ -2436,6 +2436,14 @@
                 if (isStickActive) updateFromKeys();
             });
 
+            // If focus leaves the page, keyup events are lost — clear all held keys
+            window.addEventListener('blur', () => {
+                if (heldKeys.size > 0) {
+                    heldKeys.clear();
+                    if (isStickActive) updateFromKeys();
+                }
+            });
+
             // ---- Tab wiring ----
             document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.tab-btn').forEach(btn => {
