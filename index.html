@@ -2212,14 +2212,28 @@
                 ctx.restore();
 
                 // ---- Ghost path ----
-                // Slow elliptical drift — seamless loop, never returns to body
-                const angle = t * P * 2;
-                const ghostX = cx + 60 * Math.sin(angle);
-                const ghostY = baseY - 118 + 22 * Math.cos(angle);
+                // Phase 1 (t 0→0.18): rise from lying body, rotate upright, fade in
+                // Phase 2 (t 0.18→1.0): slow elliptical float — one full circle
+                // Ghost fades out near t=1 so the snap back to body at loop restart is invisible
 
-                // Lean slightly into horizontal direction of travel
-                const ghostTilt = Math.cos(angle) * 0.10;
-                const ghostAlpha = 0.90;
+                const rp = Math.min(t / 0.18, 1.0);
+                const re = 1 - Math.pow(1 - rp, 3);  // ease out
+
+                const floatFrac = Math.max(0, (t - 0.18) / 0.82);
+                const angle = floatFrac * P * 2;
+                // Ellipse center at baseY-118, top/bottom ±22, left/right ±60
+                // At angle=0: (cx, baseY-96) — exactly where the rise ends
+                const floatX = cx + 60 * Math.sin(angle);
+                const floatY = (baseY - 118) + 22 * Math.cos(angle);
+
+                const ghostX = t < 0.18 ? cx                              : floatX;
+                const ghostY = t < 0.18 ? (baseY + 55) - re * 151        : floatY;
+                const ghostTilt = t < 0.18 ? (P / 2) * (1 - re)          : Math.cos(angle) * 0.10;
+
+                // Fade in during rise, full during float, fade out last 12% so loop is seamless
+                const ghostAlpha = t < 0.18 ? rp * 0.90
+                                 : t > 0.88 ? ((1 - t) / 0.12) * 0.90
+                                 : 0.90;
 
                 // Arm gentle wave
                 const armWave = Math.sin(t * P * 2.5) * 0.18;
