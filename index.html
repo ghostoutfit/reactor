@@ -458,7 +458,7 @@
                 2px  0   rgba(255,0,0,0.55),
                 -2px 0   rgba(0,210,255,0.55),
                 0    3px rgba(0,0,0,0.9);
-            margin-bottom: 12px;
+            margin-bottom: 62px;
             animation: crt-glitch 5s linear infinite;
             user-select: none;
             pointer-events: none;
@@ -789,6 +789,7 @@
                 <span><kbd>D</kbd>DANCE</span>
                 <span><kbd>O</kbd>COME ON</span>
                 <span><kbd>G</kbd>GHOST</span>
+                <span><kbd>X</kbd>TWIST</span>
             </div>
         </div>
     </div>
@@ -1779,6 +1780,7 @@
                 { bg: '#0000FF', word: '#00FF00' },  // 10: dance      — blue / green
                 { bg: '#FF6600', word: '#FF00FF' },  // 11: come on    — orange / magenta
                 { bg: '#001133', word: '#00FFFF' },  // 12: ghost      — deep night / cyan
+                { bg: '#FF00FF', word: '#FFFF00' },  // 13: twist      — magenta / yellow
             ];
 
             // Vivid spin palette
@@ -1796,10 +1798,11 @@
                 r: { action: 'spin',   word: 'SPIN',      theme: 9 },
                 d: { action: 'dance',  word: 'DANCE!',    theme: 10 },
                 o: { action: 'comeon', word: 'COME ON!',  theme: 11 },
-                g: { action: 'ghost',  word: 'HEAR THE SOUND AROUND', theme: 12 },
+                g: { action: 'ghost',  word: 'HEAR THE<br>SOUND AROUND', theme: 12 },
+                x: { action: 'twist',  word: 'TWIST!',                 theme: 13 },
             };
 
-            const keyOrder = ['s','w','k','c','j','l','y','t','r','d','o','g'];
+            const keyOrder = ['s','w','k','c','j','l','y','t','r','d','o','g','x'];
             const heldKeys = new Set();
             let currentAction = 'idle';
             let animStart = 0;
@@ -1815,7 +1818,7 @@
             function setAction(action, word, themeIdx) {
                 currentAction = action;
                 animStart = performance.now();
-                document.getElementById('neon-word').textContent = word;
+                document.getElementById('neon-word').innerHTML = word;
                 applyTheme(themeIdx);
             }
 
@@ -1829,7 +1832,7 @@
                 }
                 if (currentAction !== 'idle') {
                     currentAction = 'idle';
-                    document.getElementById('neon-word').textContent = '';
+                    document.getElementById('neon-word').innerHTML = '';
                     applyTheme(0);
                 }
             }
@@ -2177,6 +2180,20 @@
                             rl: P/4   - 0.1,
                             offY: -Math.abs(s(t * P * 4)) * 6,
                         };
+
+                    case 'twist': {
+                        // Spin × dance: fast irregular scaleX + wild arm/leg chaos + bounce
+                        const f1 = t * P * 7.3,  f2 = t * P * 5.1,  f3 = t * P * 9.7;
+                        return { ...def,
+                            scaleX: c(f1) * (0.6 + 0.4 * Math.abs(c(f2 * 0.4))),
+                            offY: -Math.abs(s(f2)) * 28 - Math.abs(s(f3 * 0.6)) * 14,
+                            tilt: s(t * P * 2.9) * 0.25,
+                            la: P * 0.7 + s(f2) * 0.9,
+                            ra: P * 0.3 + c(f3) * 0.9,
+                            ll: P*3/4 + s(f1 * 0.8) * 0.45,
+                            rl: P/4   - c(f2 * 1.1) * 0.45,
+                        };
+                    }
                 }
                 return def;
             }
@@ -2191,7 +2208,7 @@
 
                 // ---- Dim lying body (lie pose at ease=1) ----
                 ctx.save();
-                ctx.globalAlpha = 0.18;
+                ctx.globalAlpha = 0.45;
                 ctx.translate(cx, baseY + 55);  // lie offY = 55
                 ctx.rotate(P / 2);              // lie tilt = π/2
                 ctx.strokeStyle = '#ffffff';
@@ -2221,13 +2238,13 @@
 
                 const floatFrac = Math.max(0, (t - 0.18) / 0.82);
                 const angle = floatFrac * P * 2;
-                // Ellipse center at baseY-118, top/bottom ±22, left/right ±60
-                // At angle=0: (cx, baseY-96) — exactly where the rise ends
+                // Ellipse center at baseY-70, ±22 vertical, ±60 horizontal.
+                // At angle=0: floatY = baseY-48, keeping head top ≥8px inside canvas.
                 const floatX = cx + 60 * Math.sin(angle);
-                const floatY = (baseY - 118) + 22 * Math.cos(angle);
+                const floatY = (baseY - 70) + 22 * Math.cos(angle);
 
                 const ghostX = t < 0.18 ? cx                              : floatX;
-                const ghostY = t < 0.18 ? (baseY + 55) - re * 151        : floatY;
+                const ghostY = t < 0.18 ? (baseY + 55) - re * 103        : floatY;
                 const ghostTilt = t < 0.18 ? (P / 2) * (1 - re)          : Math.cos(angle) * 0.10;
 
                 // Fade in during rise, full during float, fade out last 12% so loop is seamless
@@ -2395,9 +2412,9 @@
                 const loopMs = currentAction === 'dance' ? 20000 : currentAction === 'ghost' ? 6000 : LOOP_MS;
                 const t = ((now - animStart) % loopMs) / loopMs;
 
-                // Spin: cycle palette on background
-                if (currentAction === 'spin') {
-                    const ci = Math.floor(t * spinPalette.length);
+                // Spin / Twist: cycle palette on background
+                if (currentAction === 'spin' || currentAction === 'twist') {
+                    const ci = Math.floor(t * spinPalette.length) % spinPalette.length;
                     document.getElementById('neon-stage').style.backgroundColor = spinPalette[ci];
                 }
 
