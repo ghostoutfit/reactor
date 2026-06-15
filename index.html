@@ -2189,56 +2189,80 @@
                 const headCY = -bodyLen - headR;
                 const aY = -bodyLen + bodyLen * 0.32;
 
-                // Dim slumped body at ground
+                // ---- Dim lying body (lie pose at ease=1) ----
                 ctx.save();
                 ctx.globalAlpha = 0.18;
-                ctx.translate(cx, baseY);
+                ctx.translate(cx, baseY + 55);  // lie offY = 55
+                ctx.rotate(P / 2);              // lie tilt = π/2
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.beginPath(); ctx.arc(0, headCY, headR, 0, P*2); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0, -bodyLen); ctx.lineTo(0, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(-armLen*0.75, aY + armLen*0.65); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo( armLen*0.75, aY + armLen*0.65); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-legLen*0.35, legLen*0.93); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo( legLen*0.35, legLen*0.93); ctx.stroke();
+                const laF = -0.90, raF = -1.0135;
+                ctx.beginPath(); ctx.moveTo(0, aY);
+                    ctx.lineTo(Math.cos(laF)*armLen, aY + Math.sin(laF)*armLen); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY);
+                    ctx.lineTo(Math.cos(raF)*armLen, aY + Math.sin(raF)*armLen); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(P*3/4)*legLen, Math.sin(P*3/4)*legLen); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(P/4)*legLen, Math.sin(P/4)*legLen); ctx.stroke();
                 ctx.restore();
 
-                // Floating ghost — lazy oval path
-                const angle = t * P * 2;
-                const ghostX = cx + Math.cos(angle) * 28;
-                const ghostY = baseY - 115 + Math.sin(angle * 0.7) * 12;
-                const bobY = Math.sin(t * P * 4) * 4;
-                const armWave = Math.sin(t * P * 2) * 0.15;
+                // ---- Ghost path ----
+                // sin(π*t) is 0 at t=0 and t=1, peaks at t=0.5 — natural rise and fall.
+                // Ghost starts at lying body's position (baseY+55, tilt π/2),
+                // rises upright and explores the stage, then sinks back.
+                const window = Math.sin(P * t);            // 0→1→0 over loop
+                const lift   = Math.pow(window, 0.40);    // spend more time near top
+                // Vertical: starts and ends at lying body; floats ~130px above center
+                const ghostY = (baseY + 55) - lift * 130 + Math.sin(P * t * 3.3) * 12;
+                // Horizontal wander: zero at start/end (sin window), sweeps R then L
+                const ghostX = cx + 65 * window * Math.sin(P * t * 2.5);
+                // Gentle bob
+                const bobY = Math.sin(t * P * 5) * 3;
 
+                // ---- Ghost tilt ----
+                // Begins lying flat (π/2), rotates upright in first ~18% of loop
+                const riseP = Math.min(t / 0.18, 1.0);
+                const riseE = 1 - Math.pow(1 - riseP, 3);
+                // Lean slightly into direction of travel after rising
+                const leanTilt = -Math.cos(P * t * 2.5) * 0.10 * window;
+                const ghostTilt = (P / 2) * (1 - riseE) + leanTilt;
+
+                // Alpha: fades in quickly on rise, fades out at fall
+                const ghostAlpha = Math.min(window * 2.5, 0.90);
+
+                // Arm gentle wave
+                const armWave = Math.sin(t * P * 2.5) * 0.18;
+
+                // ---- Draw ghost ----
                 ctx.save();
                 ctx.translate(ghostX, ghostY + bobY);
+                ctx.rotate(ghostTilt);
 
-                // Glow
                 ctx.shadowColor = '#00FFFF';
                 ctx.shadowBlur = 22;
-                ctx.globalAlpha = 0.90;
+                ctx.globalAlpha = ghostAlpha;
                 ctx.strokeStyle = '#aaffff';
                 ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
-                // Head
                 ctx.beginPath(); ctx.arc(0, headCY, headR, 0, P*2); ctx.stroke();
-
-                // Body
                 ctx.beginPath(); ctx.moveTo(0, -bodyLen); ctx.lineTo(0, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY);
+                    ctx.lineTo(-armLen, aY - 8 + armWave * 25); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, aY);
+                    ctx.lineTo( armLen, aY - 8 - armWave * 25); ctx.stroke();
 
-                // Arms spread wide and gently floating
-                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(-armLen, aY - 8 + armWave*30); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo( armLen, aY - 8 - armWave*30); ctx.stroke();
-
-                // Wispy tail (3 wavy tendrils instead of legs)
+                // Wispy tail (3 wavy tendrils)
                 for (let i = -1; i <= 1; i++) {
                     const phase = t * P * 3 + i * 1.2;
                     const wx = Math.sin(phase) * 9;
-                    ctx.globalAlpha = 0.90 - Math.abs(i) * 0.2;
+                    ctx.globalAlpha = ghostAlpha * (1 - Math.abs(i) * 0.22);
                     ctx.beginPath();
                     ctx.moveTo(i * 10, 0);
                     ctx.quadraticCurveTo(i * 10 + wx, legLen * 0.45, i * 7 + wx * 0.4, legLen * 0.80);
