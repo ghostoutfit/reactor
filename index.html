@@ -2258,16 +2258,13 @@
                 ctx.beginPath(); ctx.moveTo(0, aY);
                     ctx.lineTo( armLen, aY - 8 - armWave * 25); ctx.stroke();
 
-                // Wispy tail (3 wavy tendrils)
-                for (let i = -1; i <= 1; i++) {
-                    const phase = t * P * 3 + i * 1.2;
-                    const wx = Math.sin(phase) * 9;
-                    ctx.globalAlpha = ghostAlpha * (1 - Math.abs(i) * 0.22);
-                    ctx.beginPath();
-                    ctx.moveTo(i * 10, 0);
-                    ctx.quadraticCurveTo(i * 10 + wx, legLen * 0.45, i * 7 + wx * 0.4, legLen * 0.80);
-                    ctx.stroke();
-                }
+                // Flutter kick legs — alternate to swim upward
+                const kick = Math.sin(t * P * 6) * 0.32;
+                ctx.globalAlpha = ghostAlpha;
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(P/2 + kick) * legLen, Math.sin(P/2 + kick) * legLen); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(P/2 - kick) * legLen, Math.sin(P/2 - kick) * legLen); ctx.stroke();
 
                 ctx.restore();
             }
