@@ -2212,35 +2212,21 @@
                 ctx.restore();
 
                 // ---- Ghost path ----
-                // sin(π*t) is 0 at t=0 and t=1, peaks at t=0.5 — natural rise and fall.
-                // Ghost starts at lying body's position (baseY+55, tilt π/2),
-                // rises upright and explores the stage, then sinks back.
-                const window = Math.sin(P * t);            // 0→1→0 over loop
-                const lift   = Math.pow(window, 0.40);    // spend more time near top
-                // Vertical: starts and ends at lying body; floats ~130px above center
-                const ghostY = (baseY + 55) - lift * 130 + Math.sin(P * t * 3.3) * 12;
-                // Horizontal wander: zero at start/end (sin window), sweeps R then L
-                const ghostX = cx + 65 * window * Math.sin(P * t * 2.5);
-                // Gentle bob
-                const bobY = Math.sin(t * P * 5) * 3;
+                // Slow elliptical drift — seamless loop, never returns to body
+                const angle = t * P * 2;
+                const ghostX = cx + 60 * Math.sin(angle);
+                const ghostY = baseY - 118 + 22 * Math.cos(angle);
 
-                // ---- Ghost tilt ----
-                // Begins lying flat (π/2), rotates upright in first ~18% of loop
-                const riseP = Math.min(t / 0.18, 1.0);
-                const riseE = 1 - Math.pow(1 - riseP, 3);
-                // Lean slightly into direction of travel after rising
-                const leanTilt = -Math.cos(P * t * 2.5) * 0.10 * window;
-                const ghostTilt = (P / 2) * (1 - riseE) + leanTilt;
-
-                // Alpha: fades in quickly on rise, fades out at fall
-                const ghostAlpha = Math.min(window * 2.5, 0.90);
+                // Lean slightly into horizontal direction of travel
+                const ghostTilt = Math.cos(angle) * 0.10;
+                const ghostAlpha = 0.90;
 
                 // Arm gentle wave
                 const armWave = Math.sin(t * P * 2.5) * 0.18;
 
                 // ---- Draw ghost ----
                 ctx.save();
-                ctx.translate(ghostX, ghostY + bobY);
+                ctx.translate(ghostX, ghostY);
                 ctx.rotate(ghostTilt);
 
                 ctx.shadowColor = '#00FFFF';
