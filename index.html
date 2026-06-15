@@ -1840,6 +1840,7 @@
                     ll: P*3/4, rl: P/4,
                     mouth: 0, circleMouth: false,
                     megaphone: false, stompKnees: false,
+                    scaleX: 1,
                 };
 
                 switch (action) {
@@ -1848,17 +1849,156 @@
                         return { ...def, offY: s(t * P * 2) * 2 };
 
                     case 'dance': {
-                        // Breakdancing: overlapping sines at different frequencies
-                        const ph = t * P * 2;
-                        return { ...def,
-                            offY: s(ph*2)*10 - s(ph)*5,
-                            tilt: s(ph*1.5)*0.24 + s(ph*3)*0.06,
-                            shX:  c(ph*1.5)*14  + c(ph*2.7)*4,
-                            la: P*2/3 + s(ph*2 + P*0.6)*0.9  + s(ph*3)*0.2,
-                            ra: P/3   + s(ph*2 - P*0.6)*0.9  + s(ph*3)*0.2,
-                            ll: P*3/4 + s(ph*2 - P*0.4)*0.28 + s(ph*4)*0.08,
-                            rl: P/4   + s(ph*2 + P*0.4)*0.28 + s(ph*4)*0.08,
-                        };
+                        // 20-second breakdance epic
+                        const T = t * 20;
+                        const sm = x => { const v = Math.max(0, Math.min(1, x)); return v*v*(3-2*v); };
+                        const ph = (a, b) => sm((T-a)/(b-a));
+
+                        if (T < 3) {
+                            // GROOVE: classic bounce
+                            const f = T * P * 2;
+                            return { ...def,
+                                offY: s(f*2)*10 - s(f)*5,
+                                tilt: s(f*1.5)*0.24 + s(f*3)*0.06,
+                                shX:  c(f*1.5)*14  + c(f*2.7)*4,
+                                la: P*2/3 + s(f*2 + P*0.6)*0.9 + s(f*3)*0.2,
+                                ra: P/3   + s(f*2 - P*0.6)*0.9 + s(f*3)*0.2,
+                                ll: P*3/4 + s(f*2 - P*0.4)*0.28 + s(f*4)*0.08,
+                                rl: P/4   + s(f*2 + P*0.4)*0.28 + s(f*4)*0.08,
+                            };
+                        }
+
+                        if (T < 5) {
+                            // POP & LOCK: sharp freeze snaps, 0.5s each
+                            const lt = T - 3;
+                            const beat = Math.floor(lt * 2);
+                            const bfrac = (lt * 2) % 1;
+                            const snap = 1 - Math.pow(1 - Math.min(bfrac * 5, 1), 3);
+                            const poses = [
+                                { la: P*3/4, ra:  P/6,  tilt: 0.13,  shX: 16,  offY: -5  },
+                                { la: P/6,   ra: P*5/6, tilt: -0.13, shX: -16, offY: -5  },
+                                { la: -P/3,  ra: -P/3,  tilt: 0,     shX: 0,   offY: -12 },
+                                { la: P*5/6, ra: P*1/2, tilt: 0.2,   shX: 8,   offY: 0   },
+                            ];
+                            const b  = Math.min(beat, 3);
+                            const bp = beat > 0 ? poses[Math.min(beat-1,3)] : { la: P*2/3, ra: P/3, tilt: 0, shX: 0, offY: 0 };
+                            const cp = poses[b];
+                            return { ...def, ll: P*3/4, rl: P/4,
+                                tilt: bp.tilt + (cp.tilt - bp.tilt)*snap,
+                                shX:  bp.shX  + (cp.shX  - bp.shX )*snap,
+                                offY: bp.offY + (cp.offY - bp.offY)*snap,
+                                la:   bp.la   + (cp.la   - bp.la  )*snap,
+                                ra:   bp.ra   + (cp.ra   - bp.ra  )*snap,
+                            };
+                        }
+
+                        if (T < 8.5) {
+                            // THE WORM: fall forward, body wave, rise
+                            const lt = T - 5;
+                            const fallE = sm(lt / 0.7);
+                            const riseE = sm((lt - 2.8) / 0.7);
+                            const factor = fallE * (1 - riseE);
+                            const wt = Math.max(0, Math.min(1, (lt - 0.7) / 2.1));
+                            const wave = (lt > 0.7 && lt < 2.8) ? s(wt * P * 3.5) : 0;
+                            return { ...def,
+                                tilt: factor * P * 0.47 + wave * 0.14,
+                                offY: factor * 52 + Math.abs(wave) * 8,
+                                shX:  (lt > 0.7 && lt < 2.8) ? wt * 22 : lt > 2.8 ? 22*(1-riseE) : 0,
+                                la: P*2/3 + factor*0.6 + wave*0.3,
+                                ra: P/3   - factor*0.3 + wave*0.3,
+                            };
+                        }
+
+                        if (T < 12) {
+                            // HEAD SPIN: drop onto head, scaleX spin, pop back up
+                            const lt = T - 8.5;
+                            const dropE = sm(lt / 0.6);
+                            const popE  = sm((lt - 2.8) / 0.65);
+                            const factor = dropE * (1 - popE);
+                            const spinning = lt > 0.6 && lt < 2.8;
+                            const st = spinning ? (lt - 0.6) / 2.2 : 0;
+                            return { ...def,
+                                tilt: factor * P * 0.87,
+                                offY: factor * 26,
+                                scaleX: spinning ? c(st * P * 6) : 1,
+                                la: P*2/3 + factor*(P - P*2/3),   // → P (tripod arm)
+                                ra: P/3   + factor*(0 - P/3),     // → 0 (tripod arm)
+                                ll: P*3/4 + (spinning ? s(st * P * 10) * 0.75 : 0),
+                                rl: P/4   + (spinning ? s(st * P * 10 + P) * 0.75 : 0),
+                            };
+                        }
+
+                        if (T < 14.5) {
+                            // WINDMILL: body horizontal spinning with flared legs
+                            const lt = T - 12;
+                            const f2 = lt * P * 2.8;
+                            return { ...def,
+                                tilt: s(lt * P * 1.4) * 0.38,
+                                shX:  c(f2 * 0.75) * 20,
+                                offY: -s(f2) * 18 + s(f2*2)*6,
+                                scaleX: c(lt * P * 2.2),
+                                la: P*2/3 + s(f2 + P*0.7) * 1.2,
+                                ra: P/3   + s(f2 - P*0.7) * 1.2,
+                                ll: P*3/4 + s(f2*1.3) * 0.55,
+                                rl: P/4   + s(f2*1.3 + P) * 0.55,
+                            };
+                        }
+
+                        if (T < 16.5) {
+                            // TOP ROCK: upright bounce footwork
+                            const lt = T - 14.5;
+                            const f2 = lt * P * 4;
+                            return { ...def,
+                                offY: -Math.abs(s(f2)) * 16,
+                                tilt: s(f2 * 0.5) * 0.18,
+                                shX:  c(f2 * 0.5) * 14,
+                                la: P*2/3 + s(f2 + P*0.3) * 0.85,
+                                ra: P/3   + s(f2 - P*0.3) * 0.85,
+                                ll: P*3/4 + s(f2 + P*0.25) * 0.32,
+                                rl: P/4   + s(f2 - P*0.25) * 0.32,
+                            };
+                        }
+
+                        if (T < 18.5) {
+                            // AIR FLARES: big spinning jumps
+                            const lt = T - 16.5;
+                            const f2 = lt * P * 3;
+                            const jump = Math.abs(s(lt * P * 2));
+                            return { ...def,
+                                offY: -jump * 88,
+                                tilt: s(f2 * 0.6) * 0.4,
+                                scaleX: c(lt * P * 3.2),
+                                la: P/2 + s(f2) * 0.9,
+                                ra: P/2 + s(f2 + P) * 0.9,
+                                ll: P*3/4 + s(f2*0.8) * 0.65,
+                                rl: P/4   + s(f2*0.8 + P*0.6) * 0.65,
+                            };
+                        }
+
+                        {
+                            // FINALE: big jump then hard freeze pose
+                            const lt = T - 18.5;
+                            if (lt < 1.0) {
+                                const jp = s(lt * P);
+                                return { ...def,
+                                    offY: -jp * 95,
+                                    tilt: jp * 0.32,
+                                    scaleX: c(lt * P * 2),
+                                    la: P*2/3 - jp * P*0.65,
+                                    ra: P/3   - jp * P*0.65,
+                                    ll: P*3/4 + jp * P*0.26,
+                                    rl: P/4   - jp * P*0.26,
+                                };
+                            }
+                            const fe = sm((lt - 1.0) / 0.35);
+                            return { ...def,
+                                tilt: fe * 0.24,
+                                shX:  fe * -12,
+                                la: P*2/3 + fe*(P*5/6 - P*2/3),
+                                ra: P/3   + fe*(P/6 - P/3),
+                                rl: P/4   - fe*(P/4 + P*0.48),
+                            };
+                        }
                     }
 
                     case 'comeon': {
@@ -2021,12 +2161,14 @@
                     }
 
                     case 'spin':
+                        // Horizontal spin like a kid getting dizzy — scaleX oscillates
                         return { ...def,
-                            tilt: t * P * 2,   // full 360° per 2s
-                            la: P,             // T-pose arms straight out
+                            scaleX: c(t * P * 4),   // 2 full spins per 2s loop
+                            la: P,                   // T-pose arms out
                             ra: 0,
-                            ll: P*2/3 + 0.1,
-                            rl: P/3   - 0.1,
+                            ll: P*3/4 + 0.1,
+                            rl: P/4   - 0.1,
+                            offY: -Math.abs(s(t * P * 4)) * 6,
                         };
                 }
                 return def;
@@ -2082,6 +2224,7 @@
                 ctx.save();
                 ctx.translate(cx + pose.shX, baseY + pose.offY);
                 ctx.rotate(pose.tilt);
+                ctx.scale(pose.scaleX, 1);
 
                 ctx.strokeStyle = 'rgba(255,255,255,0.95)';
                 ctx.lineWidth = 4;
@@ -2152,9 +2295,10 @@
 
             function stickLoop(now) {
                 if (!isStickActive) return;
-                const t = ((now - animStart) % LOOP_MS) / LOOP_MS;
+                const loopMs = currentAction === 'dance' ? 20000 : LOOP_MS;
+                const t = ((now - animStart) % loopMs) / loopMs;
 
-                // Spin: cycle C64 palette on background
+                // Spin: cycle palette on background
                 if (currentAction === 'spin') {
                     const ci = Math.floor(t * spinPalette.length);
                     document.getElementById('neon-stage').style.backgroundColor = spinPalette[ci];
